@@ -100,7 +100,7 @@ pub struct SyntaxError {
 
 macro_rules! syntax_error {
     ($s: expr, $m: expr) => {
-        return Err(SyntaxError {
+        Err(SyntaxError {
             span: $s,
             message: ($m).into(),
         })
@@ -132,13 +132,13 @@ impl<'a> RichTokenLexer<'a> {
                 BasicTokenKind::Whitespace => continue,
 
                 // Throw error for unknown tokens
-                BasicTokenKind::Unknown => syntax_error!(span, "Unknown token"),
+                BasicTokenKind::Unknown => return syntax_error!(span, "Unknown token"),
 
                 // Literals
                 BasicTokenKind::Literal { kind } => match kind {
                     // Throw error for unterminated string literals
                     LiteralKind::Str { terminated: false } => {
-                        syntax_error!(span, "Unterminated string literal")
+                        return syntax_error!(span, "Unterminated string literal")
                     }
 
                     // TODO: intern these
