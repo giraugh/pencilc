@@ -1,4 +1,4 @@
-# Pencil Compiler
+# ✏️ Pencil Compiler
 
 Creating a toy compiler to practice my Rust and to better understand compilers.
 
