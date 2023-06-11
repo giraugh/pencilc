@@ -1,0 +1,6 @@
+fn main() {
+  let x = 1;
+  let y = 2;
+  // Print the sum of x and y
+  print(x + y);
+}
