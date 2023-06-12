@@ -3,7 +3,7 @@ use std::fmt::Display;
 
 use self::Delimeter::*;
 use self::TokenKind::*;
-use super::{cursor::Cursor, BasicTokenKind, LiteralKind};
+use super::{basic::BasicTokenKind, basic::LiteralKind, cursor::Cursor};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, derive_more::Add)]
 struct CharPos(usize);
@@ -86,7 +86,7 @@ pub enum Delimeter {
     Brace,
 }
 
-pub struct RichTokenLexer<'a> {
+pub struct TokenLexer<'a> {
     input: &'a str,
     position: CharPos,
     cursor: Cursor<'a>,
@@ -107,7 +107,7 @@ macro_rules! syntax_error {
     };
 }
 
-impl<'a> RichTokenLexer<'a> {
+impl<'a> TokenLexer<'a> {
     pub fn new(input: &'a str) -> Self {
         Self {
             input,
