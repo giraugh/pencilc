@@ -1,27 +1,13 @@
+use crate::error::SyntaxError;
+use crate::session::{self, Session};
+use crate::span::{CharPos, Span};
 use std::fmt::Debug;
-use std::fmt::Display;
 
 use self::Delimeter::*;
 use self::TokenKind::*;
 use super::{basic::BasicTokenKind, basic::LiteralKind, cursor::Cursor};
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, derive_more::Add)]
-struct CharPos(usize);
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct Span {
-    start: CharPos,
-    end: CharPos,
-}
-
-impl Display for Span {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}", self.start.0, self.end.0)?;
-        Ok(())
-    }
-}
-
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Token {
     pub kind: TokenKind,
     pub span: Span,
@@ -34,19 +20,24 @@ impl Debug for Token {
     }
 }
 
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum LiteralValue {
+    Str(session::StringID),
+    Int(u64),
+    Float(f64),
+}
+
 #[allow(unused)]
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TokenKind {
     /// End of file
     EOF,
 
     /// Identifier
-    Ident,
+    Ident(session::SymbolID),
 
     /// Literal
-    Literal {
-        kind: LiteralKind,
-    },
+    Literal(LiteralValue),
 
     /// Opening a delimeter
     OpenDelimeter(Delimeter),
@@ -87,15 +78,9 @@ pub enum Delimeter {
 }
 
 pub struct TokenLexer<'a> {
-    input: &'a str,
     position: CharPos,
     cursor: Cursor<'a>,
-}
-
-#[allow(unused)]
-pub struct SyntaxError {
-    span: Span,
-    message: String,
+    session: &'a mut Session<'a>,
 }
 
 macro_rules! syntax_error {
@@ -108,9 +93,10 @@ macro_rules! syntax_error {
 }
 
 impl<'a> TokenLexer<'a> {
-    pub fn new(input: &'a str) -> Self {
+    pub fn new(session: &'a mut Session<'a>) -> Self {
+        let input = session.input;
         Self {
-            input,
+            session,
             position: CharPos(0),
             cursor: Cursor::new(input),
         }
@@ -121,10 +107,9 @@ impl<'a> TokenLexer<'a> {
             let basic_token = self.cursor.next_token();
             let start = self.position;
             self.position = self.position + CharPos(basic_token.len);
-            let span = Span {
-                start,
-                end: self.position.clone(),
-            };
+            let span = Span::new(start, self.position.clone());
+
+            let value_str = &self.session.input[span.start.0..span.end.0];
 
             let token_kind = match basic_token.kind {
                 // Skip comments and whitespace
@@ -136,17 +121,24 @@ impl<'a> TokenLexer<'a> {
 
                 // Literals
                 BasicTokenKind::Literal { kind } => match kind {
-                    // Throw error for unterminated string literals
-                    LiteralKind::Str { terminated: false } => {
-                        return syntax_error!(span, "Unterminated string literal")
+                    LiteralKind::Str { terminated } => {
+                        if terminated {
+                            let string_id = self.session.intern_string(value_str.to_owned());
+                            Literal(LiteralValue::Str(string_id))
+                        } else {
+                            return syntax_error!(span, "Unterminated string literal");
+                        }
                     }
 
-                    // TODO: intern these
-                    kind => Literal { kind },
+                    // TODO: raise value error instead of this unwrap
+                    LiteralKind::Int => Literal(LiteralValue::Int(value_str.parse().unwrap())),
+
+                    // TODO: raise value error instead of this unwrap
+                    LiteralKind::Float => Literal(LiteralValue::Int(value_str.parse().unwrap())),
                 },
 
                 // TODO: intern idents
-                BasicTokenKind::Ident => Ident,
+                BasicTokenKind::Ident => Ident(self.session.intern_symbol(value_str.to_owned())),
 
                 // We compact delimeters by the delimeter type
                 BasicTokenKind::OpenParen => OpenDelimeter(Parenthesis),
