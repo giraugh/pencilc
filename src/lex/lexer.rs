@@ -1,4 +1,4 @@
-use crate::error::SyntaxError;
+use crate::error::LexError;
 use crate::session::{self, Session};
 use crate::span::{CharPos, Span};
 use std::fmt::Debug;
@@ -83,15 +83,6 @@ pub struct TokenLexer<'a> {
     session: &'a mut Session<'a>,
 }
 
-macro_rules! syntax_error {
-    ($s: expr, $m: expr) => {
-        Err(SyntaxError {
-            span: $s,
-            message: ($m).into(),
-        })
-    };
-}
-
 impl<'a> TokenLexer<'a> {
     pub fn new(session: &'a mut Session<'a>) -> Self {
         let input = session.input;
@@ -102,7 +93,7 @@ impl<'a> TokenLexer<'a> {
         }
     }
 
-    pub fn next_token(&mut self) -> Result<Token, SyntaxError> {
+    pub fn next_token(&mut self) -> Result<Token, LexError> {
         loop {
             let basic_token = self.cursor.next_token();
             let start = self.position;
@@ -117,7 +108,7 @@ impl<'a> TokenLexer<'a> {
                 BasicTokenKind::Whitespace => continue,
 
                 // Throw error for unknown tokens
-                BasicTokenKind::Unknown => return syntax_error!(span, "Unknown token"),
+                BasicTokenKind::Unknown => return Err(LexError::UnknownTokenError),
 
                 // Literals
                 BasicTokenKind::Literal { kind } => match kind {
@@ -126,15 +117,15 @@ impl<'a> TokenLexer<'a> {
                             let string_id = self.session.intern_string(value_str.to_owned());
                             Literal(LiteralValue::Str(string_id))
                         } else {
-                            return syntax_error!(span, "Unterminated string literal");
+                            return Err(LexError::MalformedStringError);
                         }
                     }
 
                     // TODO: raise value error instead of this unwrap
-                    LiteralKind::Int => Literal(LiteralValue::Int(value_str.parse().unwrap())),
+                    LiteralKind::Int => Literal(LiteralValue::Int(value_str.parse()?)),
 
                     // TODO: raise value error instead of this unwrap
-                    LiteralKind::Float => Literal(LiteralValue::Int(value_str.parse().unwrap())),
+                    LiteralKind::Float => Literal(LiteralValue::Float(value_str.parse()?)),
                 },
 
                 // TODO: intern idents

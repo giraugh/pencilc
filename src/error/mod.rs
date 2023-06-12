@@ -1,4 +1,4 @@
+mod lex_error;
 mod parse_error;
-mod syntax_error;
+pub use lex_error::LexError;
 pub use parse_error::ParseError;
-pub use syntax_error::SyntaxError;
