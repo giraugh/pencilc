@@ -1,25 +1,39 @@
+use crate::{lex::LiteralValue, session::SymbolID};
+
 type NodeRef = Box<Node>;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Node {
-    kind: NodeKind,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum NodeKind {
+#[allow(unused)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum Node {
     Expr,
-    Literal,
+    Literal(LiteralValue),
+    Statement,
+    Block {
+        statements: Vec<NodeRef>,
+    },
+    Module {
+        declarations: Vec<NodeRef>,
+    },
     BinOpt {
         operation: BinOpt,
         operands: (NodeRef, NodeRef),
     },
-    Block,
-    FunctionDeclaration {
-        ident: String, /* TODO */
+    UnaOpt {
+        operation: UnaOpt,
+        operand: NodeRef,
+    },
+    FunctionDefinition {
+        ident: SymbolID,
+        arguments: Vec<NodeRef>,
         body: NodeRef,
+    },
+    VariableDeclaration {
+        name: SymbolID,
+        ty: SymbolID,
     },
 }
 
+#[allow(unused)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BinOpt {
     Add,
@@ -27,5 +41,10 @@ pub enum BinOpt {
     Multiply,
     Divide,
     Exponentiate,
-    Modulo,
+}
+
+#[allow(unused)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum UnaOpt {
+    Negate,
 }

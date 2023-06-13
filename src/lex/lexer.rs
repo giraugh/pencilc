@@ -1,10 +1,13 @@
 use crate::error::LexError;
-use crate::session::{self, Session};
+use crate::session::{self, SessionRef, StringID, SymbolID};
 use crate::span::{CharPos, Span};
 use std::fmt::Debug;
+use strum::IntoEnumIterator;
+use strum_macros::Display;
 
 use self::Delimeter::*;
 use self::TokenKind::*;
+use super::kw::Kw;
 use super::{basic::BasicTokenKind, basic::LiteralKind, cursor::Cursor};
 
 #[derive(Clone, Copy, PartialEq)]
@@ -22,19 +25,19 @@ impl Debug for Token {
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum LiteralValue {
-    Str(session::StringID),
+    Str(StringID),
     Int(u64),
     Float(f64),
 }
 
 #[allow(unused)]
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Display)]
 pub enum TokenKind {
     /// End of file
     EOF,
 
     /// Identifier
-    Ident(session::SymbolID),
+    Ident(SymbolID),
 
     /// Literal
     Literal(LiteralValue),
@@ -80,17 +83,46 @@ pub enum Delimeter {
 pub struct TokenLexer<'a> {
     position: CharPos,
     cursor: Cursor<'a>,
-    session: &'a mut Session<'a>,
+    session: SessionRef<'a>,
 }
 
 impl<'a> TokenLexer<'a> {
-    pub fn new(session: &'a mut Session<'a>) -> Self {
-        let input = session.input;
+    pub fn new(session: SessionRef<'a>) -> Self {
+        // Load keywords into session
+        {
+            let mut session = session.try_write().unwrap();
+            for kw in Kw::iter() {
+                let kw_str = kw.as_ref().to_owned();
+                let kw_id = kw.into();
+                session.intern_kw(kw_id, kw_str);
+            }
+        }
+
+        // Get input from session
+        let input = session.read().unwrap().input;
+
         Self {
             session,
             position: CharPos(0),
             cursor: Cursor::new(input),
         }
+    }
+
+    pub fn tokenize(mut self) -> Result<Vec<Token>, LexError> {
+        let mut tokens = Vec::new();
+        loop {
+            match self.next_token() {
+                Ok(token) => {
+                    if token.kind == TokenKind::EOF {
+                        break;
+                    } else {
+                        tokens.push(token)
+                    }
+                }
+                Err(err) => return Err(err),
+            }
+        }
+        Ok(tokens)
     }
 
     pub fn next_token(&mut self) -> Result<Token, LexError> {
@@ -100,7 +132,8 @@ impl<'a> TokenLexer<'a> {
             self.position = self.position + CharPos(basic_token.len);
             let span = Span::new(start, self.position.clone());
 
-            let value_str = &self.session.input[span.start.0..span.end.0];
+            let mut session = self.session.try_write().unwrap();
+            let value_str = &session.input[span.start.0..span.end.0];
 
             let token_kind = match basic_token.kind {
                 // Skip comments and whitespace
@@ -112,24 +145,19 @@ impl<'a> TokenLexer<'a> {
 
                 // Literals
                 BasicTokenKind::Literal { kind } => match kind {
+                    LiteralKind::Int => Literal(LiteralValue::Int(value_str.parse()?)),
+                    LiteralKind::Float => Literal(LiteralValue::Float(value_str.parse()?)),
                     LiteralKind::Str { terminated } => {
                         if terminated {
-                            let string_id = self.session.intern_string(value_str.to_owned());
+                            let string_id = session.intern_string(value_str.to_owned());
                             Literal(LiteralValue::Str(string_id))
                         } else {
                             return Err(LexError::MalformedStringError);
                         }
                     }
-
-                    // TODO: raise value error instead of this unwrap
-                    LiteralKind::Int => Literal(LiteralValue::Int(value_str.parse()?)),
-
-                    // TODO: raise value error instead of this unwrap
-                    LiteralKind::Float => Literal(LiteralValue::Float(value_str.parse()?)),
                 },
 
-                // TODO: intern idents
-                BasicTokenKind::Ident => Ident(self.session.intern_symbol(value_str.to_owned())),
+                BasicTokenKind::Ident => Ident(session.intern_symbol(value_str.to_owned())),
 
                 // We compact delimeters by the delimeter type
                 BasicTokenKind::OpenParen => OpenDelimeter(Parenthesis),

@@ -1,6 +1,7 @@
-use std::{env, fs};
+use std::{env, fs, rc::Rc, sync::RwLock};
 
-use lex::tokenize;
+use lex::TokenLexer;
+use parse::Parser;
 use session::Session;
 
 pub(crate) mod error;
@@ -19,12 +20,16 @@ fn main() {
     let source_text = fs::read_to_string(source_path).expect("Can't read source file");
 
     // Initialise a compilation session
-    let mut session = Session::new(&source_text);
+    let session = Rc::new(RwLock::new(Session::new(&source_text)));
 
-    // Turn source into stream of tokens
-    let tokens = tokenize(&mut session);
-    {
-        let tokens_vec = tokens.flatten().collect::<Vec<_>>();
-        dbg!(tokens_vec);
-    }
+    // Create lexer to get token stream
+    let lexer = TokenLexer::new(session.clone());
+    let tokens = lexer.tokenize().expect("lexing error");
+
+    // Create parser
+    let mut parser = Parser::new(session, tokens);
+
+    // For now, parse a single function
+    let result = parser.parse_module().expect("parsing error");
+    dbg!(result);
 }

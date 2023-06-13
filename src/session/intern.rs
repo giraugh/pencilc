@@ -5,6 +5,12 @@ use std::{collections::HashMap, hash::Hash};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash)]
 pub struct SymbolID(u64);
 
+impl SymbolID {
+    pub fn new(value: u64) -> Self {
+        Self(value)
+    }
+}
+
 impl InternID for SymbolID {
     fn next_id(&self) -> Self {
         Self(self.0 + 1)
@@ -46,6 +52,12 @@ impl<ID: InternID, Intern: InternValue> Default for InternPool<ID, Intern> {
 }
 
 impl<ID: InternID, Intern: InternValue> InternPool<ID, Intern> {
+    pub fn intern_reserved(&mut self, value: Intern, id: ID) {
+        self.ids.insert(value.clone(), id);
+        self.interns.insert(id, value);
+        self.next_id = id.next_id();
+    }
+
     pub fn intern(&mut self, value: Intern) -> ID {
         let entry = self.ids.entry(value.clone()).or_insert_with(|| {
             // Get next id

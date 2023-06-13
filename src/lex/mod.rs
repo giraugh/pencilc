@@ -1,22 +1,7 @@
 mod basic;
 mod cursor;
+mod kw;
 mod lexer;
 
-use crate::{error::LexError, session::Session};
-pub use lexer::{Token, TokenKind, TokenLexer};
-
-pub fn tokenize<'a>(
-    session: &'a mut Session<'a>,
-) -> impl Iterator<Item = Result<Token, LexError>> + 'a {
-    let mut lexer = TokenLexer::new(session);
-    std::iter::from_fn(move || match lexer.next_token() {
-        Ok(token) => {
-            if token.kind == TokenKind::EOF {
-                None
-            } else {
-                Some(Ok(token))
-            }
-        }
-        Err(err) => Some(Err(err)),
-    })
-}
+pub use kw::Kw;
+pub use lexer::{Delimeter, LiteralValue, Token, TokenKind, TokenLexer};
