@@ -7,6 +7,7 @@ type NodeRef = Box<Node>;
 pub enum Node {
     Expr,
     Literal(LiteralValue),
+    Variable(SymbolID),
     Statement,
     Block {
         statements: Vec<NodeRef>,

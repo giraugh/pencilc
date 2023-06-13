@@ -304,6 +304,9 @@ impl<'a> Parser<'a> {
             // Parse a literal on its own
             TokenKind::Literal(value) => Ok(ast::Node::Literal(value)),
 
+            // Parse an identifier on its own
+            TokenKind::Ident(symbol_id) => Ok(ast::Node::Variable(symbol_id)),
+
             // Parse a literal in parentheses
             TokenKind::OpenDelimeter(Delimeter::Parenthesis) => {
                 let subexpr = self.parse_expression()?;
@@ -351,6 +354,12 @@ mod test {
     #[test]
     fn test_parse_complex_expression() {
         let ast_result = parser!("10 + (-5 * (3 ^ 2) + 1)").parse_expression();
+        assert!(ast_result.is_ok());
+    }
+
+    #[test]
+    fn test_parse_expression_with_variable() {
+        let ast_result = parser!("10 + (a * (3 ^ 2) + 1)").parse_expression();
         assert!(ast_result.is_ok());
     }
 
