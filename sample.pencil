@@ -10,7 +10,7 @@ fn main() {
   print(sum)
 }
 
-fn other(a: int, b: int) {
+fn other(a: int, b: int) -> int {
   a + b
 }
 

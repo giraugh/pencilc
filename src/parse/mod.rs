@@ -1,4 +1,5 @@
 mod ast;
+mod pretty_print;
 
 use multipeek::{IteratorExt, MultiPeek};
 use std::vec;
@@ -9,8 +10,8 @@ use crate::{
     session::{SessionRef, SymbolID},
 };
 
-pub use self::ast::PrettyPrint;
 use self::ast::{BinOpt, UnaOpt};
+pub use self::pretty_print::PrettyPrint;
 
 type Result<T> = std::result::Result<T, ParseError>;
 
@@ -135,7 +136,18 @@ impl<'a> Parser<'a> {
             }
         }
 
-        // TODO: optionally parse a return type
+        // Optionally parse a return type
+        let return_ty = if let TokenKind::Minus = self.peek_kind() {
+            // Eat the ->
+            self.bump();
+            self.expect_next(TokenKind::Gt)?;
+
+            // Expect a type expression
+            let expr = self.parse_type_expression()?;
+            Some(Box::new(expr))
+        } else {
+            None
+        };
 
         // Parse the body of the function
         let body = self.parse_block()?;
@@ -144,6 +156,7 @@ impl<'a> Parser<'a> {
         Ok(ast::Node::FunctionDefinition {
             ident,
             arguments,
+            return_ty,
             body: Box::new(body),
         })
     }
