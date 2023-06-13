@@ -1,11 +1,16 @@
 fn main() {
-  let x = 1;
-  let y = 2;
-  // Print the sum of x and y
-  print(x + y)
+  // Define variables
+  let x: int = 1;
+  let y = 2 * 10;
+
+  // Compute sum
+  let sum = other(x, y + 1);
+
+  // Print it out
+  print(sum)
 }
 
 fn other(a: int, b: int) {
-  return a + b;
+  a + b
 }
 

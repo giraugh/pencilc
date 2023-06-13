@@ -4,6 +4,8 @@ use lex::TokenLexer;
 use parse::Parser;
 use session::Session;
 
+use crate::parse::PrettyPrint;
+
 pub(crate) mod error;
 pub(crate) mod lex;
 pub(crate) mod parse;
@@ -27,9 +29,9 @@ fn main() {
     let tokens = lexer.tokenize().expect("lexing error");
 
     // Create parser
-    let mut parser = Parser::new(session, tokens);
+    let mut parser = Parser::new(session.clone(), tokens);
 
     // For now, parse a single function
-    let result = parser.parse_module().expect("parsing error");
-    dbg!(result);
+    let root_node = parser.parse_module().expect("parsing error");
+    println!("{}", PrettyPrint::new(root_node, session));
 }

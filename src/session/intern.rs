@@ -74,7 +74,7 @@ impl<ID: InternID, Intern: InternValue> InternPool<ID, Intern> {
     }
 
     #[allow(unused)]
-    pub fn get(&mut self, id: ID) -> Option<&Intern> {
+    pub fn get(&self, id: ID) -> Option<&Intern> {
         self.interns.get(&id)
     }
 }

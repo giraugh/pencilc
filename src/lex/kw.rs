@@ -9,6 +9,9 @@ pub enum Kw {
 
     #[strum(serialize = "let")]
     Let,
+
+    #[strum(serialize = "return")]
+    Return,
 }
 
 impl From<Kw> for SymbolID {

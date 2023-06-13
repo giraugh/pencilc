@@ -14,4 +14,7 @@ pub enum ParseError {
 
     #[error("Unexpected token {0}")]
     UnexpectedToken(TokenKind),
+
+    #[error("Blocks may only return once")]
+    MultipleReturns,
 }

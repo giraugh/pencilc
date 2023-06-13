@@ -22,6 +22,14 @@ impl<'a> Session<'a> {
         }
     }
 
+    pub fn get_string(&self, id: StringID) -> Option<&String> {
+        self.strings.get(id)
+    }
+
+    pub fn get_symbol(&self, id: SymbolID) -> Option<&String> {
+        self.symbols.get(id)
+    }
+
     pub fn intern_kw(&mut self, id: SymbolID, value: String) {
         self.symbols.intern_reserved(value, id);
     }
