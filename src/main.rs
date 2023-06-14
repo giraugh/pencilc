@@ -4,13 +4,13 @@ use lex::TokenLexer;
 use parse::Parser;
 use session::Session;
 
-use crate::parse::PrettyPrint;
-
+pub(crate) mod ast;
 pub(crate) mod error;
 pub(crate) mod lex;
 pub(crate) mod parse;
 pub(crate) mod session;
 pub(crate) mod span;
+pub(crate) mod tyc;
 
 fn main() {
     // First argument is source input
@@ -32,6 +32,6 @@ fn main() {
     let mut parser = Parser::new(session.clone(), tokens);
 
     // For now, parse a single function
-    let root_node = parser.parse_module().expect("parsing error");
-    println!("{}", PrettyPrint::new(root_node, session));
+    let module = parser.parse_module().expect("parsing error");
+    println!("{:?}", module);
 }

@@ -1,8 +1,8 @@
-use std::{collections::HashMap, hash::Hash};
+use std::{collections::HashMap, fmt::Debug, hash::Hash};
 
 /* Concrete Interns (unpaid) */
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Default, Hash)]
 pub struct SymbolID(u64);
 
 impl SymbolID {
@@ -17,12 +17,25 @@ impl InternID for SymbolID {
     }
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Default, Hash)]
+impl Debug for SymbolID {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "${}", self.0)?;
+        Ok(())
+    }
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Default, Hash)]
 pub struct StringID(u64);
 
 impl InternID for StringID {
     fn next_id(&self) -> Self {
         Self(self.0 + 1)
+    }
+}
+impl Debug for StringID {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "#{}", self.0)?;
+        Ok(())
     }
 }
 

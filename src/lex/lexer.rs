@@ -1,5 +1,5 @@
 use crate::error::LexError;
-use crate::session::{self, SessionRef, StringID, SymbolID};
+use crate::session::{SessionRef, StringID, SymbolID};
 use crate::span::{CharPos, Span};
 use std::fmt::Debug;
 use strum::IntoEnumIterator;
