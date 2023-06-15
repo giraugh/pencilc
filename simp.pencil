@@ -1,0 +1,11 @@
+fn main() {
+  let a = 1;
+  let b: int = 2;
+  let c: int = {
+    add(a, b)
+  };
+}
+
+fn add(x: int, y: int) -> int {
+  x + y
+}

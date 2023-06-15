@@ -3,6 +3,7 @@ use std::{env, fs, rc::Rc, sync::RwLock};
 use lex::TokenLexer;
 use parse::Parser;
 use session::Session;
+use tyc::Tyc;
 
 pub(crate) mod ast;
 pub(crate) mod error;
@@ -30,8 +31,9 @@ fn main() {
 
     // Create parser
     let mut parser = Parser::new(session.clone(), tokens);
-
-    // For now, parse a single function
     let module = parser.parse_module().expect("parsing error");
-    println!("{:?}", module);
+
+    // Typecheck
+    let mut tc = Tyc::new();
+    tc.typecheck_module(module).expect("type error");
 }

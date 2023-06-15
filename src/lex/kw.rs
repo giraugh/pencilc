@@ -12,6 +12,15 @@ pub enum Kw {
 
     #[strum(serialize = "return")]
     Return,
+
+    #[strum(serialize = "int")]
+    Int,
+
+    #[strum(serialize = "float")]
+    Float,
+
+    #[strum(serialize = "str")]
+    Str,
 }
 
 impl From<Kw> for SymbolID {

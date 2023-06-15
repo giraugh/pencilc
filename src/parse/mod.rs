@@ -1,7 +1,7 @@
 mod parser;
 
 use crate::{
-    ast,
+    ast::{self, id::Idx},
     error::ParseError,
     lex::{Delimeter, Kw, TokenKind},
     span::Span,
@@ -40,7 +40,7 @@ impl<'a> Parser<'a> {
                 ast::ItemKind::FnDef(Box::new(func))
             }
 
-            k => return Err(crate::error::ParseError::UnexpectedToken(k)),
+            _ => return Err(ParseError::UnexpectedToken(self.bump().unwrap())),
         };
 
         // Return item
@@ -58,7 +58,7 @@ impl<'a> Parser<'a> {
         let decl = Box::new(self.parse_function_declaration()?);
 
         // Parse the function body
-        let body = Box::new(self.parse_block()?);
+        let body = Box::new(self.parse_block(true)?);
 
         // Return the node
         Ok(ast::FnDef { body, decl })
@@ -162,7 +162,7 @@ impl<'a> Parser<'a> {
                 // Return kind
                 ast::TyExprKind::Name(symbol)
             }
-            k => return Err(ParseError::UnexpectedToken(k)),
+            _ => return Err(ParseError::UnexpectedToken(self.bump().unwrap())),
         };
 
         // Return node
@@ -172,12 +172,14 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse_block(&mut self) -> Result<ast::Block> {
+    fn parse_block(&mut self, eat_open_brace: bool) -> Result<ast::Block> {
         // Start node
         self.push_start();
 
         // Eat the open brace
-        self.expect_next(TokenKind::OpenDelimeter(Delimeter::Brace))?;
+        if eat_open_brace {
+            self.expect_next(TokenKind::OpenDelimeter(Delimeter::Brace))?;
+        }
 
         // Parse statements
         let mut statements = Vec::new();
@@ -192,6 +194,7 @@ impl<'a> Parser<'a> {
 
         // Return node
         Ok(ast::Block {
+            id: self.current_block_id.next(),
             statements,
             span: self.pop_span(),
         })
@@ -241,6 +244,7 @@ impl<'a> Parser<'a> {
 
         // Return node
         Ok(ast::Statement {
+            id: self.current_statement_id.next(),
             kind,
             has_semi,
             span: self.pop_span(),
@@ -323,6 +327,7 @@ impl<'a> Parser<'a> {
 
         // Return node
         Ok(ast::Expr {
+            id: self.current_expr_id.next(),
             kind,
             span: self.pop_span(),
         })
@@ -351,6 +356,7 @@ impl<'a> Parser<'a> {
 
                     // Construct binary opt as <expr> <opt> <rhs>
                     expr = ast::Expr {
+                        id: self.current_expr_id.next(),
                         span: Span::new(expr.span.start, rhs.span.end),
                         kind: ast::ExprKind::Binary(
                             operation,
@@ -388,6 +394,7 @@ impl<'a> Parser<'a> {
 
                     // Construct binary opt as <expr> <opt> <rhs>
                     expr = ast::Expr {
+                        id: self.current_expr_id.next(),
                         span: Span::new(expr.span.start, rhs.span.end),
                         kind: ast::ExprKind::Binary(
                             operation,
@@ -414,6 +421,7 @@ impl<'a> Parser<'a> {
             // parse another factor to be the rhs
             let rhs = self.parse_factor_expression()?;
             expr = ast::Expr {
+                id: self.current_expr_id.next(),
                 span: Span::new(expr.span.start, rhs.span.end),
                 kind: ast::ExprKind::Binary(
                     ast::BinaryOpt::Exponentiate,
@@ -430,7 +438,8 @@ impl<'a> Parser<'a> {
         self.push_start();
 
         // Parse kind
-        let kind = match self.bump().unwrap().kind {
+        let token = self.bump().unwrap();
+        let kind = match token.kind {
             // Parse a literal on its own
             TokenKind::Literal(value) => ast::ExprKind::Literal(value),
 
@@ -446,6 +455,12 @@ impl<'a> Parser<'a> {
                 _ => ast::ExprKind::Name(symbol_id),
             },
 
+            // Parse a block
+            TokenKind::OpenDelimeter(Delimeter::Brace) => {
+                let block = Box::new(self.parse_block(false)?);
+                ast::ExprKind::Block(block)
+            }
+
             // Parse an expression in parentheses
             TokenKind::OpenDelimeter(Delimeter::Parenthesis) => {
                 let subexpr = self.parse_expr()?;
@@ -460,11 +475,12 @@ impl<'a> Parser<'a> {
                 ast::ExprKind::Unary(ast::UnaryOpt::Negate, factor)
             }
 
-            t => return Err(ParseError::UnexpectedToken(t)),
+            _ => return Err(ParseError::UnexpectedToken(token)),
         };
 
         // Return node
         Ok(ast::Expr {
+            id: self.current_expr_id.next(),
             kind,
             span: self.pop_span(),
         })

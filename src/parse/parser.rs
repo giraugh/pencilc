@@ -2,6 +2,7 @@ use multipeek::{IteratorExt, MultiPeek};
 use std::vec;
 
 use crate::{
+    ast::id::{BlockId, ExprId, StatementId},
     error::ParseError,
     lex::{Token, TokenKind},
     session::{SessionRef, SymbolID},
@@ -15,6 +16,10 @@ pub struct Parser<'a> {
     tokens: MultiPeek<vec::IntoIter<Token>>,
     previous_token: Option<Token>,
     span_start_stack: Vec<CharPos>,
+
+    pub current_block_id: BlockId,
+    pub current_statement_id: StatementId,
+    pub current_expr_id: ExprId,
 }
 
 impl<'a> Parser<'a> {
@@ -25,6 +30,9 @@ impl<'a> Parser<'a> {
             tokens,
             previous_token: None,
             span_start_stack: Default::default(),
+            current_block_id: Default::default(),
+            current_statement_id: Default::default(),
+            current_expr_id: Default::default(),
         }
     }
 
@@ -32,7 +40,7 @@ impl<'a> Parser<'a> {
         match self.bump() {
             Some(token) => match token.kind {
                 TokenKind::Ident(symbol_id) => Ok(symbol_id),
-                kind => Err(ParseError::UnexpectedToken(kind)),
+                _ => Err(ParseError::UnexpectedToken(token)),
             },
             None => Err(ParseError::UnexpectedEndOfInput),
         }
@@ -92,7 +100,7 @@ impl<'a> Parser<'a> {
                 } else {
                     Err(ParseError::ExpectedToken {
                         expected: expected_token,
-                        actual: token.kind,
+                        actual: token,
                     })
                 }
             }

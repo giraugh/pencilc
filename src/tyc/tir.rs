@@ -1,24 +1,18 @@
-pub mod id;
-
-use crate::{lex::LiteralValue, session::SymbolID, span::Span};
-
-use self::id::{BlockId, ExprId, StatementId};
+use super::ty::Ty;
+use crate::{
+    ast::{
+        self,
+        id::{BlockId, ExprId, StatementId},
+    },
+    lex::LiteralValue,
+    session::SymbolID,
+    span::Span,
+};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Module {
-    pub items: Vec<Item>,
     pub span: Span,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct Item<K = ItemKind> {
-    pub kind: K,
-    pub span: Span,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum ItemKind {
-    FnDef(Box<FnDef>),
+    pub functions: Vec<FnDef>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -26,6 +20,7 @@ pub struct Block {
     pub id: BlockId,
     pub statements: Vec<Statement>,
     pub span: Span,
+    pub ty: Ty,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -34,18 +29,12 @@ pub struct Statement {
     pub kind: StatementKind,
     pub span: Span,
     pub has_semi: bool,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct Binding {
-    pub name: SymbolID,
-    pub ty: Option<Box<TyExpr>>,
-    pub span: Span,
+    pub ty: Ty,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum StatementKind {
-    Let(Box<Binding>, Option<Box<Expr>>),
+    Let(SymbolID, Option<Box<Expr>>),
     Expr(Box<Expr>),
 }
 
@@ -54,17 +43,18 @@ pub struct Expr {
     pub id: ExprId,
     pub span: Span,
     pub kind: ExprKind,
+    pub ty: Ty,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum ExprKind {
-    Binary(BinaryOpt, (Box<Expr>, Box<Expr>)),
-    Unary(UnaryOpt, Box<Expr>),
+    Binary(ast::BinaryOpt, (Box<Expr>, Box<Expr>)),
+    Unary(ast::UnaryOpt, Box<Expr>),
     FnCall(SymbolID, Vec<Expr>),
     Name(SymbolID),
     Literal(LiteralValue),
     Assign(SymbolID, Box<Expr>),
-    Let(Box<Binding>, Box<Expr>),
+    Let(SymbolID, Box<Expr>),
     Return(Option<Box<Expr>>),
     Block(Box<Block>),
 }
@@ -78,34 +68,18 @@ pub struct FnDef {
 #[derive(Debug, PartialEq, Clone)]
 pub struct FnDecl {
     pub name: SymbolID,
-    pub params: Vec<Binding>,
-    pub ty: Option<Box<TyExpr>>,
+    pub sig: FnSig,
     pub span: Span,
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct TyExpr {
-    pub span: Span,
-    pub kind: TyExprKind,
+pub struct FnSig {
+    pub params: Vec<Param>,
+    pub ty: Ty,
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum TyExprKind {
-    Name(SymbolID),
-}
-
-#[allow(unused)]
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum BinaryOpt {
-    Add,
-    Subtract,
-    Multiply,
-    Divide,
-    Exponentiate,
-}
-
-#[allow(unused)]
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum UnaryOpt {
-    Negate,
+pub struct Param {
+    pub name: SymbolID,
+    pub ty: Ty,
 }
