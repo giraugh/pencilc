@@ -34,11 +34,7 @@ impl Namespace {
 }
 
 #[derive(Debug, Default)]
-struct InferEnv {
-    constraints: Vec<InferConstraint>,
-    inf_vars: Vec<ty::InferenceTy>,
-    subs: HashMap<ty::InferenceTy, ty::Ty>,
-}
+struct InferEnv {}
 
 #[derive(Debug)]
 enum InferConstraint {

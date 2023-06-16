@@ -1,4 +1,8 @@
-use crate::{ast, id::SymbolId};
+use crate::{
+    ast,
+    id::SymbolId,
+    tyc::ty::{InferenceTyKind, PrimitiveTy},
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum TypeError {
@@ -10,4 +14,7 @@ pub enum TypeError {
 
     #[error("Expected parameter to have a type indication")]
     MissingParameterType(ast::Binding),
+
+    #[error("The type {1:?} is not assignable to an {0:?} type.")]
+    CannotUnifyPrimitive(InferenceTyKind, PrimitiveTy),
 }

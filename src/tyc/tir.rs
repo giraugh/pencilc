@@ -1,7 +1,7 @@
 use super::ty::Ty;
 use crate::{
     ast,
-    id::{BlockId, ExprId, StatementId, SymbolId},
+    id::{BlockId, ExprId, NameId, StatementId, SymbolId},
     lex::LiteralValue,
     span::Span,
 };
@@ -48,10 +48,10 @@ pub enum ExprKind {
     Binary(ast::BinaryOpt, (Box<Expr>, Box<Expr>)),
     Unary(ast::UnaryOpt, Box<Expr>),
     FnCall(SymbolId, Vec<Expr>),
-    Name(SymbolId),
+    Name(NameId),
     Literal(LiteralValue),
-    Assign(SymbolId, Box<Expr>),
-    Let(SymbolId, Box<Expr>),
+    Assign(NameId, Box<Expr>),
+    Let(NameId, Box<Expr>),
     Return(Option<Box<Expr>>),
     Block(Box<Block>),
 }

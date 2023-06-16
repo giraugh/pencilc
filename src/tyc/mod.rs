@@ -1,12 +1,11 @@
 pub mod tir;
 pub mod ty;
 mod ty_env;
-use std::collections::{HashMap, HashSet};
-use ty_env::TyEnv;
-
-use ty::*;
+mod unify;
 
 use crate::{ast, error::TypeError, id::SymbolId};
+use std::collections::{HashMap, HashSet};
+use ty::*;
 
 struct Scope {
     bindings: Vec<(SymbolId, Ty)>,

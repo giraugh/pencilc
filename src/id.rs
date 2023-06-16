@@ -19,6 +19,7 @@ pub trait Idx: Sized + Copy + 'static + Eq + Default + Hash {
     }
 }
 
+#[macro_export]
 macro_rules! make_id {
     ($name: ident, $tag: expr) => {
         #[derive(Clone, Default, PartialEq, Eq, Copy, Hash)]
