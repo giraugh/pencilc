@@ -1,4 +1,6 @@
-pub trait Idx: Sized + Copy + 'static + Eq {
+use std::hash::Hash;
+
+pub trait Idx: Sized + Copy + 'static + Eq + Default + Hash {
     fn new(idx: usize) -> Self;
     fn index(self) -> usize;
 
@@ -18,13 +20,13 @@ pub trait Idx: Sized + Copy + 'static + Eq {
 }
 
 macro_rules! make_id {
-    ($name: ident) => {
-        #[derive(Clone, Default, PartialEq, Eq, Copy)]
+    ($name: ident, $tag: expr) => {
+        #[derive(Clone, Default, PartialEq, Eq, Copy, Hash)]
         pub struct $name(usize);
 
         impl std::fmt::Debug for $name {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(f, "@{}", self.0)
+                write!(f, "{}{}", $tag, self.0)
             }
         }
 
@@ -37,9 +39,18 @@ macro_rules! make_id {
                 self.0
             }
         }
+
+        impl From<usize> for $name {
+            fn from(value: usize) -> Self {
+                $name(value)
+            }
+        }
     };
 }
 
-make_id!(BlockId);
-make_id!(StatementId);
-make_id!(ExprId);
+make_id!(BlockId, '@');
+make_id!(StatementId, '@');
+make_id!(ExprId, '@');
+make_id!(SymbolId, '$');
+make_id!(StringId, '#');
+make_id!(NameId, 'n');

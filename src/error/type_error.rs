@@ -1,10 +1,9 @@
-use crate::ast;
-use crate::session::SymbolID;
+use crate::{ast, id::SymbolId};
 
 #[derive(Debug, thiserror::Error)]
 pub enum TypeError {
     #[error("Unknown type name {0:?}")]
-    UnknownType(SymbolID),
+    UnknownType(SymbolId),
 
     #[error("Parameter name {0:?} is repeated in function signature")]
     RepeatedParameterName(ast::Binding),

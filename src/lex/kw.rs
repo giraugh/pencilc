@@ -1,6 +1,6 @@
 use strum_macros::{AsRefStr, EnumIter};
 
-use crate::session::SymbolID;
+use crate::id::SymbolId;
 
 #[derive(Clone, Debug, PartialEq, Eq, EnumIter, AsRefStr)]
 pub enum Kw {
@@ -16,6 +16,9 @@ pub enum Kw {
     #[strum(serialize = "int")]
     Int,
 
+    #[strum(serialize = "uint")]
+    UInt,
+
     #[strum(serialize = "float")]
     Float,
 
@@ -23,8 +26,8 @@ pub enum Kw {
     Str,
 }
 
-impl From<Kw> for SymbolID {
+impl From<Kw> for SymbolId {
     fn from(value: Kw) -> Self {
-        SymbolID::new((value as isize) as u64)
+        ((value as isize) as usize).into()
     }
 }

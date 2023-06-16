@@ -1,12 +1,39 @@
-use crate::{lex::Kw, session::SymbolID};
+use crate::{id::SymbolId, lex::Kw};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Ty {
     /// A primitive built-in type identified with a keyword
     Primitive(PrimitiveTy),
 
+    /// An inference (type) variable that represents a heretofore unknown type
+    Inference(InferenceTy),
+
     /// A value used only for function returns that indicates it won't return
     Never,
+}
+
+/// A type variable
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum InferenceTy {
+    /// A type variable unifiable with anything
+    General,
+
+    /// A type variable unifiable with integer types
+    Integral,
+
+    /// A type variable unifiable with float types (for now we only have one)
+    Float,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LiteralTy {
+    /// "some number type"
+    /// Could resolve to PrimitiveTy::Int or PrimitiveTy::Uint
+    Number,
+
+    /// "some string type"
+    /// in reality, this can only be PrimitiveTy::Str
+    Str,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -24,8 +51,8 @@ pub enum PrimitiveTy {
     Str,
 }
 
-impl From<SymbolID> for Option<PrimitiveTy> {
-    fn from(value: SymbolID) -> Self {
+impl From<SymbolId> for Option<PrimitiveTy> {
+    fn from(value: SymbolId) -> Self {
         match value {
             i if i == Kw::Int.into() => Some(PrimitiveTy::Int),
             i if i == Kw::Float.into() => Some(PrimitiveTy::Float),

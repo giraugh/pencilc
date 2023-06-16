@@ -2,10 +2,10 @@ use multipeek::{IteratorExt, MultiPeek};
 use std::vec;
 
 use crate::{
-    ast::id::{BlockId, ExprId, StatementId},
     error::ParseError,
+    id::{BlockId, ExprId, StatementId, SymbolId},
     lex::{Token, TokenKind},
-    session::{SessionRef, SymbolID},
+    session::SessionRef,
     span::{CharPos, Span},
 };
 
@@ -36,7 +36,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse_ident(&mut self) -> Result<SymbolID> {
+    pub fn parse_ident(&mut self) -> Result<SymbolId> {
         match self.bump() {
             Some(token) => match token.kind {
                 TokenKind::Ident(symbol_id) => Ok(symbol_id),

@@ -1,5 +1,6 @@
 use crate::error::LexError;
-use crate::session::{SessionRef, StringID, SymbolID};
+use crate::id::{StringId, SymbolId};
+use crate::session::SessionRef;
 use crate::span::{CharPos, Span};
 use std::fmt::Debug;
 use strum::IntoEnumIterator;
@@ -25,7 +26,7 @@ impl Debug for Token {
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum LiteralValue {
-    Str(StringID),
+    Str(StringId),
     Int(u64),
     Float(f64),
 }
@@ -37,7 +38,7 @@ pub enum TokenKind {
     EOF,
 
     /// Identifier
-    Ident(SymbolID),
+    Ident(SymbolId),
 
     /// Literal
     Literal(LiteralValue),

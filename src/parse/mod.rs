@@ -1,8 +1,9 @@
 mod parser;
 
 use crate::{
-    ast::{self, id::Idx},
+    ast,
     error::ParseError,
+    id::Idx,
     lex::{Delimeter, Kw, TokenKind},
     span::Span,
 };

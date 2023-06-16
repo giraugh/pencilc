@@ -1,18 +1,20 @@
 pub mod tir;
 pub mod ty;
+mod ty_env;
 use std::collections::{HashMap, HashSet};
+use ty_env::TyEnv;
 
 use ty::*;
 
-use crate::{ast, error::TypeError, session::SymbolID};
+use crate::{ast, error::TypeError, id::SymbolId};
 
 struct Scope {
-    bindings: Vec<(SymbolID, Ty)>,
+    bindings: Vec<(SymbolId, Ty)>,
 }
 
 pub struct Tyc {
     scope_stack: Vec<Scope>,
-    func_sigs: HashMap<SymbolID, tir::FnSig>,
+    func_sigs: HashMap<SymbolId, tir::FnSig>,
 }
 
 type Result<T> = std::result::Result<T, TypeError>;
@@ -59,7 +61,7 @@ impl Tyc {
                 ast::ItemKind::FnDef(fn_def) => {
                     // Get expected return type from func sigs
                     let fn_sig = self.func_sigs.get(&fn_def.decl.name).unwrap().clone();
-                    let body = self.typecheck_block(fn_def.body, Some(fn_sig.ty.clone()))?;
+                    let body = self.typecheck_root_block(fn_def.body, fn_sig.ty.clone())?;
 
                     Ok(tir::FnDef {
                         body: Box::new(body),
@@ -122,12 +124,20 @@ impl Tyc {
         })
     }
 
-    pub fn typecheck_block(
+    /// Typecheck a block that has no parent block scope,
+    /// for now this is just function bodies.
+    pub fn typecheck_root_block(
         &mut self,
         block: Box<ast::Block>,
-        expected_ty: Option<Ty>,
+        expected_ty: Ty,
     ) -> Result<tir::Block> {
-        dbg!(&expected_ty);
+        let constraints = todo!();
+
         todo!("tc block")
+    }
+
+    /// Typecheck a block that *may* exist inside a parent block scope
+    pub fn typecheck_block(&mut self, block: Box<ast::Block>) -> Result<tir::Block> {
+        todo!()
     }
 }

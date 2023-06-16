@@ -1,8 +1,5 @@
-pub mod id;
-
-use crate::{lex::LiteralValue, session::SymbolID, span::Span};
-
-use self::id::{BlockId, ExprId, StatementId};
+use crate::id::{BlockId, ExprId, StatementId, SymbolId};
+use crate::{lex::LiteralValue, span::Span};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Module {
@@ -38,7 +35,7 @@ pub struct Statement {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Binding {
-    pub name: SymbolID,
+    pub name: SymbolId,
     pub ty: Option<Box<TyExpr>>,
     pub span: Span,
 }
@@ -60,10 +57,10 @@ pub struct Expr {
 pub enum ExprKind {
     Binary(BinaryOpt, (Box<Expr>, Box<Expr>)),
     Unary(UnaryOpt, Box<Expr>),
-    FnCall(SymbolID, Vec<Expr>),
-    Name(SymbolID),
+    FnCall(SymbolId, Vec<Expr>),
+    Name(SymbolId),
     Literal(LiteralValue),
-    Assign(SymbolID, Box<Expr>),
+    Assign(SymbolId, Box<Expr>),
     Let(Box<Binding>, Box<Expr>),
     Return(Option<Box<Expr>>),
     Block(Box<Block>),
@@ -77,7 +74,7 @@ pub struct FnDef {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct FnDecl {
-    pub name: SymbolID,
+    pub name: SymbolId,
     pub params: Vec<Binding>,
     pub ty: Option<Box<TyExpr>>,
     pub span: Span,
@@ -91,7 +88,7 @@ pub struct TyExpr {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TyExprKind {
-    Name(SymbolID),
+    Name(SymbolId),
 }
 
 #[allow(unused)]
