@@ -28,9 +28,9 @@ Doing so requires an installation of `just`. To use just, create a file called `
 LLVM_SYS_160_PREFIX=/your/path/to/llvm
 ```
 
-Now you can run `just sample` to run the sample.
+Now you can run `just sample` to run the sample or `just run <file>` to compile a specific file.
 
-If you'd prefer to not use just you can provide the environment as an argument when using cargo.
+If you'd prefer to not use `just` you can provide the environment as an argument when using cargo.
 ```
 LLVM_SYS_160_PREFIX=/your/path/to/llvm cargo run -- my_file.pcl
 ```
