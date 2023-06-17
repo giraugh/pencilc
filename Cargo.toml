@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 derive_more = "0.99.17"
 ena = "0.14.2"
+inkwell = { version = "0.2.0", features = ["llvm16-0"] }
 multipeek = "0.1.2"
 owo-colors = "3.5.0"
 strum = "0.24.1"

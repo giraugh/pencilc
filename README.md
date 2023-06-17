@@ -1,20 +1,38 @@
-# ✏️ Pencil Compiler
+# ✏️  Pencil Compiler
 
-Creating a toy compiler to practice my Rust and to better understand compilers.
+`pencilc` is my toy compiler project to learn more about compilers and practice rust.
+The pencil language itself is a subset of rust designed for ease of use (and of implementation hehe).
 
+## Dependencies
+
+To build pencil you will require the following dependencies.
+
+- [A rust toolchain](https://www.rust-lang.org/tools/install)
+- [LLVM v16](https://llvm.org/) (note: can install using homebrew: `brew install llvvm`)
 
 ## Building
-
-Building `pencilc` requires a rust installation.
 
 First clone the repo
 ```
 git clone https://github.com/giraugh/pencilc
 ```
 
-Then build with cargo
+When building or running you will need to provide your llvm installation prefix to pencilc.
+This is the directory that contains the /bin/ directory. For example, if you installed llvm with homebrew it will be in
+`/opt/homebrew/opt/llvm`. You need to provide the prefix as the environment var `LLVM_SYS_160_PREFIX`.
+
+One option is to use the provided Justfile which will automatically load environment variables from a `.env` file.
+Doing so requires an installation of `just`. To use just, create a file called `.env` and put the following into it.
+
 ```
-cargo run
+LLVM_SYS_160_PREFIX=/your/path/to/llvm
+```
+
+Now you can run `just sample` to run the sample.
+
+If you'd prefer to not use just you can provide the environment as an argument when using cargo.
+```
+LLVM_SYS_160_PREFIX=/your/path/to/llvm cargo run -- my_file.pcl
 ```
 
 ## Usage
@@ -29,3 +47,12 @@ Or if running with cargo provide your argument after `--`
 ```bash
 cargo run -- my_file.pencil
 ```
+
+## Contributing
+
+Any and all contributions are welcome!
+
+## License
+
+Licensed under MIT
+(Please see the LICENSE file in the repo for more details)
