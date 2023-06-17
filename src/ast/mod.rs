@@ -6,6 +6,7 @@ use crate::{lex::LiteralValue, span::Span};
 pub struct Module {
     pub items: Vec<Item>,
     pub span: Span,
+    pub name: String,
 }
 
 #[derive(Debug, PartialEq, Clone)]

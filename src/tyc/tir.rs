@@ -9,6 +9,7 @@ use crate::{
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Module {
+    pub name: String,
     pub span: Span,
     pub functions: Vec<FnDef>,
 }

@@ -11,7 +11,7 @@ pub use parser::Parser;
 use parser::Result;
 
 impl<'a> Parser<'a> {
-    pub fn parse_module(&mut self) -> Result<ast::Module> {
+    pub fn parse_module(&mut self, name: &str) -> Result<ast::Module> {
         // Start node
         self.push_start();
 
@@ -24,6 +24,7 @@ impl<'a> Parser<'a> {
 
         // Return module
         Ok(ast::Module {
+            name: name.to_owned(),
             items,
             span: self.pop_span(),
         })

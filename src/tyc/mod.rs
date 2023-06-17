@@ -100,6 +100,7 @@ impl Tyc {
         let functions = functions?;
 
         Ok(tir::Module {
+            name: module.name,
             span: module.span,
             functions,
         })
