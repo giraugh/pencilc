@@ -1,11 +1,7 @@
 fn main() {
-  let a = 1;
-  let b: int = 2;
-  let c: int = {
-    add(a, b)
-  };
+  let a = 10;
+  let b = 10 + a;
+  foo(a);
 }
 
-fn add(x: int, y: int) -> int {
-  x + y
-}
+fn foo(x: uint) {}

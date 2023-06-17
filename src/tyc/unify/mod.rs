@@ -8,10 +8,10 @@ use super::{
     ty::{self, Ty},
     Result,
 };
-pub use var::{TyInferValue, TyInferVar};
+pub use var::{InferValueKind, TyInferValue, TyInferVar};
 
 #[derive(Debug)]
-struct Unifier {
+pub struct Unifier {
     table: ena::UnificationTable<ena::InPlace<TyInferVar>>, // TODO: should this be a ref?
 }
 
@@ -23,8 +23,8 @@ impl Unifier {
     }
 
     /// Create a new type variable for inference
-    pub fn new_variable(&mut self) -> TyInferVar {
-        self.table.new_key(TyInferValue::Unbound)
+    pub fn new_variable(&mut self, kind: InferValueKind) -> TyInferVar {
+        self.table.new_key(TyInferValue::Unbound(kind))
     }
 
     pub fn unify_ty_ty(&mut self, a: &Ty, b: &Ty) -> Result<()> {
@@ -36,63 +36,63 @@ impl Unifier {
         }
 
         // Unify
-        use ty::InferenceTyKind::*;
         match (a, b) {
-            // If one is an integral and the other general, they should both become integral
-            // inferences
-            (&Ty::Infer(a, Integral), &Ty::Infer(b, General))
-            | (&Ty::Infer(b, General), &Ty::Infer(a, Integral)) => {
-                // I hope this is right, plan is to make the g type variable an integral type var
-                // self.table
-                //     .unify_var_value(b, TyInferValue::Bound(Ty::Infer(a, Integral)))
-                //     .unwrap();
-
-                Ok(self
-                    .table
-                    .unify_var_var(a, b)
-                    .expect("Unifying two unbound values shouldnt fail"))
-            }
-
             // In the case they are both general, we just do a standard unification
-            (&Ty::Infer(a, _), &Ty::Infer(b, _)) => Ok(self
+            (&Ty::Infer(a), &Ty::Infer(b)) => Ok(self
                 .table
                 .unify_var_var(a, b)
                 .expect("Unifying two unbound values shouldnt fail")),
 
             // This handles unifying with primitive types
-            (&Ty::Infer(inf, ref inf_kind), prim @ &Ty::Primitive(ref prim_kind))
-            | (prim @ &Ty::Primitive(ref prim_kind), &Ty::Infer(inf, ref inf_kind)) => {
-                // First we need to see if the inf kinds are compatible
-                // e.g if this inference type is a string we can't bind it to an int
-                if !inf_kind.can_unify_with(prim_kind) {
-                    return Err(TypeError::CannotUnifyPrimitive(
-                        inf_kind.clone(),
-                        prim_kind.clone(),
-                    ));
-                }
+            (&Ty::Infer(inf), prim @ &Ty::Primitive(_))
+            | (prim @ &Ty::Primitive(_), &Ty::Infer(inf)) => Ok(self
+                .table
+                .unify_var_value(inf, TyInferValue::Bound(prim.clone()))?),
 
-                // Unify...
-                Ok(self
-                    .table
-                    .unify_var_value(inf, TyInferValue::Bound(prim.clone()))
-                    .expect("fingers crossed"))
-            }
+            // If they aren't infer then they must be the same after normalization
+            (a, b) if a == b => Ok(()),
 
-            _ => Ok(()),
+            // Failed to normalize
+            _ => Err(TypeError::CannotUnify(a.clone(), b.clone())),
         }
     }
 
     /// Normalize a type
-    fn normalize(&mut self, ty: &Ty) -> Option<Ty> {
+    /// This applies all of the current substitutions to the type if its a type variable
+    pub fn normalize(&mut self, ty: &Ty) -> Option<Ty> {
         match ty {
-            Ty::Infer(id, _) => {
+            Ty::Infer(id) => {
                 let var = TyInferVar::from(*id);
                 match self.table.probe_value(var) {
                     TyInferValue::Bound(ref ty) => Some(ty.clone()),
-                    TyInferValue::Unbound => None,
+                    TyInferValue::Unbound(_) => None,
                 }
             }
             _ => None,
+        }
+    }
+
+    /// Normalize a type, attempt to recover non-general unbound types and error if not possible
+    pub fn normalize_final(&mut self, ty: &Ty) -> Result<Ty> {
+        match ty {
+            Ty::Infer(id) => {
+                let var = TyInferVar::from(*id);
+                match self.table.probe_value(var) {
+                    // We copy out the bound types
+                    TyInferValue::Bound(ref ty) => Ok(ty.clone()),
+
+                    // If unbound but integral, try falling back to an integer
+                    TyInferValue::Unbound(InferValueKind::Integral) => {
+                        // If we can unify it with an int we will do that
+                        let prim_int = Ty::Primitive(ty::PrimitiveTy::Int);
+                        self.unify_ty_ty(ty, &prim_int).and_then(|_| Ok(prim_int))
+                    }
+
+                    // If unbound and general we cant do much
+                    TyInferValue::Unbound(InferValueKind::General) => Err(TypeError::AmbiguousType),
+                }
+            }
+            _ => Ok(ty.clone()),
         }
     }
 }
@@ -100,6 +100,60 @@ impl Unifier {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_normalize_final_valid() {
+        /* Imagine this scenario
+         *
+         * {
+         *   let x = 10;
+         *   x
+         * }
+         *
+         * what is the type of the block?
+         */
+
+        let mut unifier = Unifier::new();
+
+        // We create a type variable for x and mark it as an integral because of the literal type
+        let tv_x = unifier.new_variable(InferValueKind::Integral).to_ty();
+
+        // We have nothing left to do now so we call normalize_final on all of our remaining type
+        // values
+        let tv_x = unifier.normalize_final(&tv_x).unwrap();
+
+        // We should get back a concrete int type
+        assert_eq!(tv_x, ty::Ty::Primitive(ty::PrimitiveTy::Int));
+    }
+
+    #[test]
+    fn test_unify_idents_valid() {
+        /* Lets imagine this scenario
+         *
+         * let x;
+         * let y: int = 10;
+         * x = y;
+         */
+
+        let mut unifier = Unifier::new();
+
+        // When we get to x we won't know its type
+        // So we will create a type variable for it
+        let tv_x = unifier.new_variable(InferValueKind::General).to_ty();
+
+        // When we get to y we have a binding so we know its type
+        // we dont have to create a type variable here because all the types are known
+        let ty_y = Ty::Primitive(ty::PrimitiveTy::Int);
+
+        // Then when we get to x = y
+        // We can find the type of y in our type environment and then we can unify x with the type
+        // of y
+        unifier.unify_ty_ty(&tv_x, &ty_y).unwrap();
+
+        // Now if we normalize x we should get the concrete type
+        let ty_x = unifier.normalize(&tv_x).unwrap();
+        assert_eq!(ty_x, ty_y);
+    }
 
     #[test]
     fn test_unify_primitive_valid() {
@@ -110,16 +164,20 @@ mod test {
         let mut unifier = Unifier::new();
 
         // Create a type variable to represent the type of x
-        let tv_x = unifier.new_variable().to_ty();
+        let tv_x = unifier.new_variable(InferValueKind::General);
+        let tv_x_ty = tv_x.to_ty();
+
+        // At this point we know that tv_x has to be an integral
+        dbg!(unifier.table.probe_value(tv_x));
 
         // We also create a type variable to represent the literal 10
         // we know its an integral type but not which exact one
-        let tv_e: Ty = unifier.new_variable().to_integral();
+        let tv_e: Ty = unifier.new_variable(InferValueKind::Integral).to_ty();
 
-        unifier.unify_ty_ty(&tv_x, &tv_e).unwrap();
+        unifier.unify_ty_ty(&tv_x_ty, &tv_e).unwrap();
 
         // At this point we know that tv_x has to be an integral
-        dbg!(unifier.normalize(&tv_x));
+        dbg!(unifier.table.probe_value(tv_x));
 
         // Now say we see some code like this
         // foo(x)
@@ -128,11 +186,24 @@ mod test {
 
         // Pretend we tc'd the expression to get this type
         let int_ty = Ty::Primitive(ty::PrimitiveTy::Int);
-        unifier.unify_ty_ty(&tv_x, &int_ty).unwrap();
+        unifier.unify_ty_ty(&tv_x_ty, &int_ty).unwrap();
 
         // Get normalized tv_x (it should be an int)
-        dbg!(unifier.normalize(&tv_x));
+        dbg!(unifier.normalize(&tv_x_ty));
+    }
 
-        assert!(false);
+    #[test]
+    fn test_unify_primitive_invalid() {
+        // Same as above but we try to unify with a non-integral towards the end
+        let mut unifier = Unifier::new();
+        let tv_x = unifier.new_variable(InferValueKind::General);
+        let tv_x_ty = tv_x.to_ty();
+        let tv_e: Ty = unifier.new_variable(InferValueKind::Integral).to_ty();
+        unifier.unify_ty_ty(&tv_x_ty, &tv_e).unwrap();
+
+        // What if we now try and unify it with a string? (should error)
+        let int_ty = Ty::Primitive(ty::PrimitiveTy::Str);
+        let res = unifier.unify_ty_ty(&tv_x_ty, &int_ty);
+        assert!(res.is_err());
     }
 }

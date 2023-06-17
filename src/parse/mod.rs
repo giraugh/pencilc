@@ -207,25 +207,19 @@ impl<'a> Parser<'a> {
 
         // Parse kind
         let kind = match self.peek_kind() {
-            // Variable declaration
-            TokenKind::Ident(symbol) if symbol == Kw::Let.into() => {
-                // Eat the let
-                self.bump();
-
-                // Parse the binding
-                let binding = Box::new(self.parse_binding()?);
-
-                // Optionally parse an expression (if there is an =)
-                let expr = match self.peek_kind() {
-                    TokenKind::Eq => {
-                        self.bump();
-                        Some(Box::new(self.parse_expr()?))
-                    }
-                    _ => None,
-                };
-
-                ast::StatementKind::Let(binding, expr)
-            }
+            // // Variable declaration
+            // TokenKind::Ident(symbol) if symbol == Kw::Let.into() => {
+            //     // Eat the let
+            //     self.bump();
+            //
+            //     // Parse the binding
+            //     let binding = Box::new(self.parse_binding()?);
+            //
+            //     // Parse an expression
+            //     let expr = Box::new(self.parse_expr()?);
+            //
+            //     ast::StatementKind::Let(binding, expr)
+            // }
 
             // Or an expression
             _ => {
@@ -453,6 +447,7 @@ impl<'a> Parser<'a> {
                 }
 
                 // Parse an identifier on its own
+                // note: at this point, some primitive types like "true" and "false" are names
                 _ => ast::ExprKind::Name(symbol_id),
             },
 

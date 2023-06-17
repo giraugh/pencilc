@@ -42,7 +42,6 @@ pub struct Binding {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum StatementKind {
-    Let(Box<Binding>, Option<Box<Expr>>),
     Expr(Box<Expr>),
 }
 

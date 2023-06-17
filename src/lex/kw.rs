@@ -24,6 +24,12 @@ pub enum Kw {
 
     #[strum(serialize = "str")]
     Str,
+
+    #[strum(serialize = "true")]
+    True,
+
+    #[strum(serialize = "false")]
+    False,
 }
 
 impl From<Kw> for SymbolId {

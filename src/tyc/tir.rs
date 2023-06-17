@@ -25,13 +25,10 @@ pub struct Statement {
     pub id: StatementId,
     pub kind: StatementKind,
     pub span: Span,
-    pub has_semi: bool,
-    pub ty: Ty,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum StatementKind {
-    Let(SymbolId, Option<Box<Expr>>),
     Expr(Box<Expr>),
 }
 
