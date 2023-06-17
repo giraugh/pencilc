@@ -2,16 +2,20 @@ use std::{rc::Rc, sync::RwLock};
 
 use crate::id::{StringId, SymbolId};
 
-use self::intern::InternPool;
+use self::{
+    intern::{InternPoolExt, InternPoolRef, Interned},
+    symbol::{Symbol, SymbolStr},
+};
 
-mod intern;
+pub mod intern;
+pub mod symbol;
 
 pub type SessionRef<'a> = Rc<RwLock<Session<'a>>>;
 
 pub struct Session<'a> {
     pub input: &'a str,
-    symbols: InternPool<SymbolId, String>,
-    strings: InternPool<StringId, String>,
+    symbols: InternPoolRef<SymbolStr>,
+    strings: InternPoolRef<String>,
 }
 
 impl<'a> Session<'a> {
@@ -24,24 +28,24 @@ impl<'a> Session<'a> {
     }
 
     #[allow(unused)]
-    pub fn get_string(&self, id: StringId) -> Option<&String> {
+    pub fn get_string(&self, id: StringId) -> Option<String> {
         self.strings.get(id)
     }
 
     #[allow(unused)]
-    pub fn get_symbol(&self, id: SymbolId) -> Option<&String> {
+    pub fn get_symbol(&self, id: SymbolId) -> Option<SymbolStr> {
         self.symbols.get(id)
     }
 
     pub fn intern_kw(&mut self, id: SymbolId, value: String) {
-        self.symbols.intern_reserved(value, id);
+        self.symbols.intern_reserved(value.into(), id);
     }
 
-    pub fn intern_string(&mut self, value: String) -> StringId {
+    pub fn intern_string(&mut self, value: String) -> Interned<String> {
         self.strings.intern(value)
     }
 
-    pub fn intern_symbol(&mut self, value: String) -> SymbolId {
-        self.symbols.intern(value)
+    pub fn intern_symbol(&mut self, value: String) -> Symbol {
+        self.symbols.intern(value.into())
     }
 }

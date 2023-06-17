@@ -6,7 +6,7 @@ mod unify;
 
 pub use unify::InferValueKind;
 
-use crate::{ast, error::TypeError, id::SymbolId, lex::LiteralValue};
+use crate::{ast, error::TypeError, lex::LiteralValue, session::symbol::Symbol};
 use std::{
     collections::{HashMap, HashSet},
     iter::Peekable,
@@ -16,7 +16,7 @@ use ty::*;
 use self::ty_env::TyEnv;
 
 pub struct Tyc {
-    func_sigs: HashMap<SymbolId, tir::FnSig>,
+    func_sigs: HashMap<Symbol, tir::FnSig>,
     ty_env: Option<TyEnv>,
 }
 
@@ -34,10 +34,10 @@ impl Tyc {
         self.ty_env.as_mut().unwrap()
     }
 
-    fn lookup_func_signature(&self, symbol_id: &SymbolId) -> Result<tir::FnSig> {
+    fn lookup_func_signature(&self, symbol: &Symbol) -> Result<tir::FnSig> {
         self.func_sigs
-            .get(symbol_id)
-            .ok_or(TypeError::UnknownIdent(symbol_id.clone()))
+            .get(symbol)
+            .ok_or(TypeError::UnknownIdent(symbol.clone()))
             .cloned()
     }
 
@@ -50,7 +50,7 @@ impl Tyc {
         match ty_expr.kind {
             ast::TyExprKind::Name(ident) => {
                 // Is it a primitive?
-                if let Some(primitive) = Option::<PrimitiveTy>::from(ident) {
+                if let Some(primitive) = Option::<PrimitiveTy>::from(ident.clone()) {
                     Ok(Ty::Primitive(primitive))
                 } else {
                     Err(TypeError::UnknownType(ident))
@@ -81,7 +81,7 @@ impl Tyc {
                     // Get expected return type from func sigs
                     let fn_sig = self.func_sigs.get(&fn_def.decl.name).unwrap().clone();
                     let body = self.typecheck_function_body(
-                        fn_def.decl.name,
+                        fn_def.decl.name.clone(),
                         fn_def.body,
                         fn_sig.clone(),
                     )?;
@@ -117,7 +117,7 @@ impl Tyc {
             if uniq_param_names.contains(&param.name) {
                 return Err(TypeError::RepeatedParameterName(param.clone()));
             } else {
-                uniq_param_names.insert(param.name);
+                uniq_param_names.insert(param.name.clone());
             }
         }
 
@@ -154,7 +154,7 @@ impl Tyc {
     // TODO: should this return a "Body" rather than a "Block"?
     pub fn typecheck_function_body(
         &mut self,
-        name: SymbolId,
+        name: Symbol,
         block: Box<ast::Block>,
         sig: tir::FnSig,
     ) -> Result<tir::Block> {
@@ -300,7 +300,7 @@ impl Tyc {
                 // Get ident
                 let (name_id, ident_ty) = self
                     .ty_env()
-                    .get_ident(symbol_id)
+                    .get_ident(symbol_id.clone())
                     .ok_or(TypeError::UnknownIdent(symbol_id))?;
 
                 // Typecheck expr
@@ -325,7 +325,7 @@ impl Tyc {
             ast::ExprKind::Name(symbol_id) => {
                 let (name_id, ty) = self
                     .ty_env()
-                    .get_ident(symbol_id)
+                    .get_ident(symbol_id.clone())
                     .ok_or(TypeError::UnknownIdent(symbol_id))?;
                 (tir::ExprKind::Name(name_id), ty)
             }

@@ -3,9 +3,9 @@ use std::vec;
 
 use crate::{
     error::ParseError,
-    id::{BlockId, ExprId, StatementId, SymbolId},
+    id::{BlockId, ExprId, StatementId},
     lex::{Token, TokenKind},
-    session::SessionRef,
+    session::{symbol::Symbol, SessionRef},
     span::{CharPos, Span},
 };
 
@@ -37,10 +37,10 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse_ident(&mut self) -> Result<SymbolId> {
+    pub fn parse_ident(&mut self) -> Result<Symbol> {
         match self.bump() {
             Some(token) => match token.kind {
-                TokenKind::Ident(symbol_id) => Ok(symbol_id),
+                TokenKind::Ident(symbol) => Ok(symbol),
                 _ => Err(ParseError::UnexpectedToken(token)),
             },
             None => Err(ParseError::UnexpectedEndOfInput),
@@ -57,14 +57,14 @@ impl<'a> Parser<'a> {
 
     pub fn pop_span(&mut self) -> Span {
         let start = self.span_start_stack.pop().unwrap();
-        let end = self.previous_token.unwrap().span.end;
+        let end = self.previous_token.clone().unwrap().span.end;
         Span::new(start, end)
     }
 
     pub fn bump(&mut self) -> Option<Token> {
         match self.tokens.next() {
             Some(token) => {
-                self.previous_token = Some(token);
+                self.previous_token = Some(token.clone());
                 Some(token)
             }
             None => None,
@@ -73,7 +73,7 @@ impl<'a> Parser<'a> {
 
     pub fn peek_kind(&mut self) -> TokenKind {
         match self.tokens.peek() {
-            Some(token) => token.kind,
+            Some(token) => token.kind.clone(),
             None => TokenKind::EOF,
         }
     }
@@ -82,12 +82,12 @@ impl<'a> Parser<'a> {
         let kind_1 = self
             .tokens
             .peek_nth(0)
-            .map(|t| t.kind)
+            .map(|t| t.kind.clone())
             .unwrap_or(TokenKind::EOF);
         let kind_2 = self
             .tokens
             .peek_nth(1)
-            .map(|t| t.kind)
+            .map(|t| t.kind.clone())
             .unwrap_or(TokenKind::EOF);
         (kind_1, kind_2)
     }

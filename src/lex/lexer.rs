@@ -1,5 +1,6 @@
 use crate::error::LexError;
-use crate::id::{StringId, SymbolId};
+use crate::session::intern::Interned;
+use crate::session::symbol::Symbol;
 use crate::session::SessionRef;
 use crate::span::{CharPos, Span};
 use std::fmt::Debug;
@@ -11,7 +12,7 @@ use self::TokenKind::*;
 use super::kw::Kw;
 use super::{basic::BasicTokenKind, basic::LiteralKind, cursor::Cursor};
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Token {
     pub kind: TokenKind,
     pub span: Span,
@@ -24,21 +25,21 @@ impl Debug for Token {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum LiteralValue {
-    Str(StringId),
+    Str(Interned<String>),
     Int(u64),
     Float(f64),
 }
 
 #[allow(unused)]
-#[derive(Debug, Clone, Copy, PartialEq, Display)]
+#[derive(Debug, Clone, PartialEq, Display)]
 pub enum TokenKind {
     /// End of file
     EOF,
 
     /// Identifier
-    Ident(SymbolId),
+    Ident(Symbol),
 
     /// Literal
     Literal(LiteralValue),

@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use crate::id::{Idx, NameId, SymbolId};
+use crate::{
+    id::{Idx, NameId},
+    session::symbol::Symbol,
+};
 
 use super::{ty::Ty, unify::Unifier};
 
@@ -45,10 +48,10 @@ impl TyEnv {
         self.scope_stack.pop().expect("Should always be a scope")
     }
 
-    pub fn get_ident(&mut self, symbol_id: SymbolId) -> Option<Binding> {
+    pub fn get_ident(&mut self, symbol: Symbol) -> Option<Binding> {
         // We start at the top of the scope stack and work our way down
         for scope in self.scope_stack.iter().rev() {
-            if let Some(binding) = scope.get_ident(symbol_id) {
+            if let Some(binding) = scope.get_ident(symbol.clone()) {
                 return Some(binding);
             }
         }
@@ -114,9 +117,9 @@ impl TyEnv {
 
 impl Scope {
     /// Declare an identifier in the current scope with the given type
-    pub fn declare_ident(&mut self, symbol_id: SymbolId, ty: &Ty) -> NameId {
+    pub fn declare_ident(&mut self, symbol: Symbol, ty: &Ty) -> NameId {
         // Declare name
-        let name_id = self.namespace.declare_name(symbol_id);
+        let name_id = self.namespace.declare_name(symbol);
 
         // Add binding for type
         self.bindings.insert(name_id, ty.clone());
@@ -126,8 +129,8 @@ impl Scope {
     }
 
     /// Get the name and type from a symbol in the current scope
-    fn get_ident(&self, symbol_id: SymbolId) -> Option<Binding> {
-        let name_id = self.namespace.get_name(symbol_id)?;
+    fn get_ident(&self, symbol: Symbol) -> Option<Binding> {
+        let name_id = self.namespace.get_name(symbol)?;
         let ty = self.bindings.get(&name_id)?.clone();
         Some((name_id, ty))
     }
@@ -136,16 +139,16 @@ impl Scope {
 #[derive(Debug, Default)]
 struct Namespace {
     current_name_id: NameId,
-    names: HashMap<SymbolId, NameId>,
+    names: HashMap<Symbol, NameId>,
 }
 
 impl Namespace {
-    fn get_name(&self, symbol: SymbolId) -> Option<NameId> {
+    fn get_name(&self, symbol: Symbol) -> Option<NameId> {
         self.names.get(&symbol).cloned()
     }
 
     /// Declare a name in the space. Will redeclare if necessary
-    fn declare_name(&mut self, symbol: SymbolId) -> NameId {
+    fn declare_name(&mut self, symbol: Symbol) -> NameId {
         let name_id = self.current_name_id.next();
         self.names.insert(symbol, name_id);
         name_id

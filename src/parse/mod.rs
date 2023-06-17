@@ -36,7 +36,7 @@ impl<'a> Parser<'a> {
         // Parse the item kind
         let kind = match self.peek_kind() {
             // Parse a function def item
-            TokenKind::Ident(symbol) if symbol == Kw::Fn.into() => {
+            TokenKind::Ident(symbol) if symbol.is_kw(Kw::Fn) => {
                 let func = self.parse_function_definition()?;
                 ast::ItemKind::FnDef(Box::new(func))
             }
@@ -207,21 +207,7 @@ impl<'a> Parser<'a> {
 
         // Parse kind
         let kind = match self.peek_kind() {
-            // // Variable declaration
-            // TokenKind::Ident(symbol) if symbol == Kw::Let.into() => {
-            //     // Eat the let
-            //     self.bump();
-            //
-            //     // Parse the binding
-            //     let binding = Box::new(self.parse_binding()?);
-            //
-            //     // Parse an expression
-            //     let expr = Box::new(self.parse_expr()?);
-            //
-            //     ast::StatementKind::Let(binding, expr)
-            // }
-
-            // Or an expression
+            // Expression
             _ => {
                 let expr = Box::new(self.parse_expr()?);
                 ast::StatementKind::Expr(expr)
@@ -276,7 +262,7 @@ impl<'a> Parser<'a> {
             }
 
             // Parse let assignment
-            (TokenKind::Ident(symbol), _) if symbol == Kw::Let.into() => {
+            (TokenKind::Ident(symbol), _) if symbol.is_kw(Kw::Let) => {
                 // Eat the let
                 self.bump();
 
@@ -294,7 +280,7 @@ impl<'a> Parser<'a> {
             }
 
             // Parse return
-            (TokenKind::Ident(symbol), _) if symbol == Kw::Return.into() => {
+            (TokenKind::Ident(symbol), _) if symbol.is_kw(Kw::Return) => {
                 // Eat the return
                 self.bump();
 

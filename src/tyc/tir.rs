@@ -1,8 +1,9 @@
 use super::ty::Ty;
 use crate::{
     ast,
-    id::{BlockId, ExprId, NameId, StatementId, SymbolId},
+    id::{BlockId, ExprId, NameId, StatementId},
     lex::LiteralValue,
+    session::symbol::Symbol,
     span::Span,
 };
 
@@ -44,7 +45,7 @@ pub struct Expr {
 pub enum ExprKind {
     Binary(ast::BinaryOpt, (Box<Expr>, Box<Expr>)),
     Unary(ast::UnaryOpt, Box<Expr>),
-    FnCall(SymbolId, Vec<Expr>),
+    FnCall(Symbol, Vec<Expr>),
     Name(NameId),
     Literal(LiteralValue),
     Assign(NameId, Box<Expr>),
@@ -61,7 +62,7 @@ pub struct FnDef {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct FnDecl {
-    pub name: SymbolId,
+    pub name: Symbol,
     pub sig: FnSig,
     pub span: Span,
 }
@@ -74,6 +75,6 @@ pub struct FnSig {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Param {
-    pub name: SymbolId,
+    pub name: Symbol,
     pub ty: Ty,
 }

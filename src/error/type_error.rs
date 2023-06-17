@@ -1,16 +1,16 @@
 use crate::{
     ast,
-    id::SymbolId,
+    session::symbol::Symbol,
     tyc::{ty::Ty, InferValueKind},
 };
 
 #[derive(Debug, thiserror::Error)]
 pub enum TypeError {
     #[error("Unknown type name {0:?}")]
-    UnknownType(SymbolId),
+    UnknownType(Symbol),
 
     #[error("Unknown identifier {0:?}")]
-    UnknownIdent(SymbolId),
+    UnknownIdent(Symbol),
 
     #[error("Parameter name {0:?} is repeated in function signature")]
     RepeatedParameterName(ast::Binding),
@@ -25,7 +25,7 @@ pub enum TypeError {
     CannotUnify(Ty, Ty),
 
     #[error("Expected function {0:?} to return {1} rather than {2}")]
-    ExpectedReturnType(SymbolId, Ty, Ty),
+    ExpectedReturnType(Symbol, Ty, Ty),
 
     #[error("Cant determine type")]
     AmbiguousType,

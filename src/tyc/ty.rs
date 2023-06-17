@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{id::SymbolId, lex::Kw};
+use crate::{lex::Kw, session::symbol::Symbol};
 
 use super::unify::TyInferVar;
 
@@ -52,13 +52,13 @@ impl Display for Ty {
     }
 }
 
-impl From<SymbolId> for Option<PrimitiveTy> {
-    fn from(value: SymbolId) -> Self {
+impl From<Symbol> for Option<PrimitiveTy> {
+    fn from(value: Symbol) -> Self {
         match value {
-            i if i == Kw::Int.into() => Some(PrimitiveTy::Int),
-            i if i == Kw::UInt.into() => Some(PrimitiveTy::UInt),
-            i if i == Kw::Float.into() => Some(PrimitiveTy::Float),
-            i if i == Kw::Str.into() => Some(PrimitiveTy::Str),
+            i if i.is_kw(Kw::Int) => Some(PrimitiveTy::Int),
+            i if i.is_kw(Kw::UInt) => Some(PrimitiveTy::UInt),
+            i if i.is_kw(Kw::Float) => Some(PrimitiveTy::Float),
+            i if i.is_kw(Kw::Str) => Some(PrimitiveTy::Str),
 
             _ => None,
         }
