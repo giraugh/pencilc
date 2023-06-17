@@ -24,9 +24,6 @@ pub enum TypeError {
     #[error("The type {0:?} is not assignable to an {1:?} type.")]
     CannotUnify(Ty, Ty),
 
-    #[error("Expected a type annotation here")]
-    AnnotationRequired,
-
     #[error("Cant determine type")]
     AmbiguousType,
 }

@@ -23,10 +23,12 @@ impl<'a> Session<'a> {
         }
     }
 
+    #[allow(unused)]
     pub fn get_string(&self, id: StringId) -> Option<&String> {
         self.strings.get(id)
     }
 
+    #[allow(unused)]
     pub fn get_symbol(&self, id: SymbolId) -> Option<&String> {
         self.symbols.get(id)
     }

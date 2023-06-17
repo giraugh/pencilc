@@ -12,6 +12,7 @@ use crate::{
 pub type Result<T> = std::result::Result<T, ParseError>;
 
 pub struct Parser<'a> {
+    #[allow(unused)]
     session: SessionRef<'a>,
     tokens: MultiPeek<vec::IntoIter<Token>>,
     previous_token: Option<Token>,
