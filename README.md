@@ -8,7 +8,7 @@ The pencil language itself is a subset of rust designed for ease of use (and of 
 To build pencil you will require the following dependencies.
 
 - [A rust toolchain](https://www.rust-lang.org/tools/install)
-- [LLVM v16](https://llvm.org/) (note: can install using homebrew: `brew install llvvm`)
+- [LLVM v16](https://llvm.org/) (note: can install using homebrew: `brew install llvm`)
 
 ## Building
 
