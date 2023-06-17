@@ -18,11 +18,14 @@ pub enum TypeError {
     #[error("Expected parameter to have a type indication")]
     MissingParameterType(ast::Binding),
 
-    #[error("The type {1:?} is not assignable to an {0:?} type.")]
+    #[error("The type {1:?} is not assignable to an {0:?} type variable.")]
     CannotUnifyPrimitive(InferValueKind, Ty),
 
-    #[error("The type {0:?} is not assignable to an {1:?} type.")]
+    #[error("The type {0} is not unifiable with a {1} type.")]
     CannotUnify(Ty, Ty),
+
+    #[error("Expected function {0:?} to return {1} rather than {2}")]
+    ExpectedReturnType(SymbolId, Ty, Ty),
 
     #[error("Cant determine type")]
     AmbiguousType,

@@ -1,7 +1,3 @@
-fn main() {
-  let a = 10;
-  let b = 10 + a;
-  foo(a);
+fn main() -> int {
+  "hi!"
 }
-
-fn foo(x: uint) {}

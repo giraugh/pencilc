@@ -80,7 +80,11 @@ impl Tyc {
                 ast::ItemKind::FnDef(fn_def) => {
                     // Get expected return type from func sigs
                     let fn_sig = self.func_sigs.get(&fn_def.decl.name).unwrap().clone();
-                    let body = self.typecheck_function_body(fn_def.body, fn_sig.clone())?;
+                    let body = self.typecheck_function_body(
+                        fn_def.decl.name,
+                        fn_def.body,
+                        fn_sig.clone(),
+                    )?;
 
                     Ok(tir::FnDef {
                         body: Box::new(body),
@@ -150,6 +154,7 @@ impl Tyc {
     // TODO: should this return a "Body" rather than a "Block"?
     pub fn typecheck_function_body(
         &mut self,
+        name: SymbolId,
         block: Box<ast::Block>,
         sig: tir::FnSig,
     ) -> Result<tir::Block> {
@@ -171,7 +176,13 @@ impl Tyc {
         let typed_block = self.typecheck_block(block, false)?;
 
         // Check return type
-        self.equate_tys(&typed_block.ty, &sig.ty)?;
+        self.equate_tys(&typed_block.ty, &sig.ty)
+            .map_err(|e| match e {
+                TypeError::CannotUnify(expected, actual) => {
+                    TypeError::ExpectedReturnType(name, actual, expected)
+                }
+                e => e,
+            })?;
 
         // Then pop the final scope to clean up
         self.ty_env().pop_scope();

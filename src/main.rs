@@ -36,7 +36,9 @@ fn main() {
 
     // Typecheck
     let mut tc = Tyc::new();
-    let module = tc.typecheck_module(module).expect("type error");
+    let module = tc
+        .typecheck_module(module)
+        .unwrap_or_else(|e| panic!("{}", e));
 
     dbg!(module);
 }
