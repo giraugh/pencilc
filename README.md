@@ -9,6 +9,20 @@ To build pencil you will require the following dependencies.
 
 - [A rust toolchain](https://www.rust-lang.org/tools/install)
 - [LLVM v16](https://llvm.org/) (note: can install using homebrew: `brew install llvm`)
+- [Just](https://github.com/casey/just) (optional)
+
+## Pencil
+
+Pencil is a highly derivative toy language designed to be a subset of Rust.
+
+**Planned features**
+
+- [x] Compiling files
+- [ ] Control flow
+- [ ] Strings
+- [ ] Lists
+- [ ] Custom structs
+- [ ] Using external functions from `libc`
 
 ## Building
 
@@ -17,23 +31,26 @@ First clone the repo
 git clone https://github.com/giraugh/pencilc
 ```
 
-When building or running you will need to provide your llvm installation prefix to pencilc.
-This is the directory that contains the /bin/ directory. For example, if you installed llvm with homebrew it will be in
-`/opt/homebrew/opt/llvm`. You need to provide the prefix as the environment var `LLVM_SYS_160_PREFIX`.
+To build and use `pencilc` you will need to provide the path to your llvm installation. `pencilc` expects to see this in
+the form of an environment variable that points to your llvm path prefix (the path that `/bin`) is in.
+(if you installed llvm using homebrew your prefix will be `/opt/homebrew/opt/llvm`).
 
-One option is to use the provided Justfile which will automatically load environment variables from a `.env` file.
-Doing so requires an installation of `just`. To use just, create a file called `.env` and put the following into it.
-
-```
+The easiest way to do this is to create a `.env` file with your prefix in it. Then, when you run the build scripts with `just` it will
+automatically load the environment.
+```bash
 LLVM_SYS_160_PREFIX=/your/path/to/llvm
 ```
 
-Now you can run `just sample` to run the sample or `just run <file>` to compile a specific file.
+Once you have your environment setup, you can use `pencilc` to compile a source file with `just run <source_file>`.
+You can also run `just fixture` to compile the provided `sample.pcl` and link it with `fixture.c` to print to stdout. Ater running `just fixture`
+you can run the executable with `./fixture`.
 
 If you'd prefer to not use `just` you can provide the environment as an argument when using cargo.
 ```
 LLVM_SYS_160_PREFIX=/your/path/to/llvm cargo run -- my_file.pcl
 ```
+
+To build pencilc and have it available without using `cargo` or `just` you can install it with `cargo install`.
 
 ## Usage
 
@@ -41,11 +58,6 @@ Simply point `pencilc` at your source file.
 
 ```bash
 pencilc my_file.pencil
-```
-
-Or if running with cargo provide your argument after `--`
-```bash
-cargo run -- my_file.pencil
 ```
 
 ## Contributing
