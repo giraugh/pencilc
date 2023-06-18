@@ -3,14 +3,6 @@
 `pencilc` is my toy compiler project to learn more about compilers and practice rust.
 The pencil language itself is a subset of rust designed for ease of use (and of implementation hehe).
 
-## Dependencies
-
-To build pencil you will require the following dependencies.
-
-- [A rust toolchain](https://www.rust-lang.org/tools/install)
-- [LLVM v16](https://llvm.org/) (note: can install using homebrew: `brew install llvm`)
-- [Just](https://github.com/casey/just) (optional)
-
 ## Pencil
 
 Pencil is a highly derivative toy language designed to be a subset of Rust.
@@ -37,6 +29,16 @@ Run the help command to see all options
 pencilc --help
 ```
 
+## Dependencies
+
+To build pencilc you will require the following dependencies
+
+- [A rust toolchain](https://www.rust-lang.org/tools/install)
+- [LLVM v16](https://llvm.org/) (note: can install using homebrew: `brew install llvm`)
+- [Just](https://github.com/casey/just) (optional)
+
+
+
 ## Building
 
 First clone the repo
@@ -46,7 +48,8 @@ git clone https://github.com/giraugh/pencilc
 
 To build and use `pencilc` you will need to provide the path to your llvm installation. `pencilc` expects to see this in
 the form of an environment variable that points to your llvm path prefix (the path that `/bin`) is in.
-(if you installed llvm using homebrew your prefix will be `/opt/homebrew/opt/llvm`).
+
+*(if you installed llvm using homebrew your prefix will be `/opt/homebrew/opt/llvm`)*
 
 The easiest way to do this is to create a `.env` file with your prefix in it. Then, when you run the build scripts with `just` it will
 automatically load the environment.
