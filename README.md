@@ -24,6 +24,19 @@ Pencil is a highly derivative toy language designed to be a subset of Rust.
 - [ ] Custom structs
 - [ ] Using external functions from `libc`
 
+## Usage
+
+Simply point `pencilc` at your source file[s].
+
+```bash
+pencilc my_file.pencil
+```
+
+Run the help command to see all options
+```bash
+pencilc --help
+```
+
 ## Building
 
 First clone the repo
@@ -51,14 +64,6 @@ LLVM_SYS_160_PREFIX=/your/path/to/llvm cargo run -- my_file.pcl
 ```
 
 To build pencilc and have it available without using `cargo` or `just` you can install it with `cargo install`.
-
-## Usage
-
-Simply point `pencilc` at your source file.
-
-```bash
-pencilc my_file.pencil
-```
 
 ## Contributing
 
