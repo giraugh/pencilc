@@ -27,6 +27,10 @@ impl Tyc {
                 tir::StatementKind::Expr(expr) => {
                     tir::StatementKind::Expr(Box::new(self.norm_expr(*expr, fin)?))
                 }
+                tir::StatementKind::Return(Some(expr)) => {
+                    tir::StatementKind::Return(Some(Box::new(self.norm_expr(*expr, fin)?)))
+                }
+                tir::StatementKind::Return(None) => tir::StatementKind::Return(None),
             },
             ..statement
         })
@@ -65,10 +69,6 @@ impl Tyc {
 
                 tir::ExprKind::Let(name, expr) => {
                     tir::ExprKind::Let(name, Box::new(self.norm_expr(*expr, fin)?))
-                }
-
-                tir::ExprKind::Return(Some(expr)) => {
-                    tir::ExprKind::Return(Some(Box::new(self.norm_expr(*expr, fin)?)))
                 }
 
                 kind => kind,

@@ -20,7 +20,7 @@ pub enum Ty {
 pub enum PrimitiveTy {
     /// A signed 32 bit integer
     #[strum(serialize = "int")]
-    Int,
+    SInt,
 
     /// An unsigned 32 bit integer
     #[strum(serialize = "uint")]
@@ -55,7 +55,7 @@ impl Display for Ty {
 impl From<Symbol> for Option<PrimitiveTy> {
     fn from(value: Symbol) -> Self {
         match value {
-            i if i.is_kw(Kw::Int) => Some(PrimitiveTy::Int),
+            i if i.is_kw(Kw::Int) => Some(PrimitiveTy::SInt),
             i if i.is_kw(Kw::UInt) => Some(PrimitiveTy::UInt),
             i if i.is_kw(Kw::Float) => Some(PrimitiveTy::Float),
             i if i.is_kw(Kw::Str) => Some(PrimitiveTy::Str),

@@ -45,6 +45,7 @@ pub struct Binding {
 #[derive(Debug, PartialEq, Clone)]
 pub enum StatementKind {
     Expr(Box<Expr>),
+    Return(Option<Box<Expr>>),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -63,7 +64,6 @@ pub enum ExprKind {
     Literal(LiteralValue),
     Assign(Symbol, Box<Expr>),
     Let(Box<Binding>, Box<Expr>),
-    Return(Option<Box<Expr>>),
     Block(Box<Block>),
 }
 

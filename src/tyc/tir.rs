@@ -32,6 +32,7 @@ pub struct Statement {
 #[derive(Debug, PartialEq, Clone)]
 pub enum StatementKind {
     Expr(Box<Expr>),
+    Return(Option<Box<Expr>>),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -51,14 +52,19 @@ pub enum ExprKind {
     Literal(LiteralValue),
     Assign(NameId, Box<Expr>),
     Let(NameId, Box<Expr>),
-    Return(Option<Box<Expr>>),
     Block(Box<Block>),
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct FnDef {
     pub decl: Box<FnDecl>,
-    pub body: Box<Block>,
+    pub body: Box<FnBody>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct FnBody {
+    pub block: Box<Block>,
+    pub param_names: Vec<NameId>,
 }
 
 #[derive(Debug, PartialEq, Clone)]

@@ -158,7 +158,7 @@ impl Tyc {
         name: Symbol,
         block: Box<ast::Block>,
         sig: tir::FnSig,
-    ) -> Result<tir::Block> {
+    ) -> Result<tir::FnBody> {
         // Create a new type environment for this body
         self.ty_env.replace(TyEnv::new());
 
@@ -166,11 +166,11 @@ impl Tyc {
         self.ty_env().new_scope();
 
         // Add params to scope
-        for param in sig.params {
-            self.ty_env()
-                .current_scope()
-                .declare_ident(param.name, &param.ty);
-        }
+        let param_names = sig
+            .params
+            .iter()
+            .map(|param| self.ty_env().declare_ident(param.name.clone(), &param.ty))
+            .collect();
 
         // Typecheck the inner block
         // note: we dont let this fn call manage the scope, we do that for the top level scope
@@ -192,7 +192,10 @@ impl Tyc {
         let normalized_block = self.norm_block(typed_block, true)?;
 
         // Return type
-        Ok(normalized_block)
+        Ok(tir::FnBody {
+            block: Box::new(normalized_block),
+            param_names,
+        })
     }
 
     /// Typecheck a block that *may* exist inside a parent block scope
@@ -219,28 +222,38 @@ impl Tyc {
         for (is_last, statement) in block.statements.into_iter().mark_last() {
             // Typecheck dependent on statement type (right now theres only env expressions anyway)
             let kind = match statement.kind {
+                // Typecheck an explicit return
+                ast::StatementKind::Return(expr) => {
+                    // We've seen a return
+                    saw_return = true;
+
+                    // Typecheck the expression
+                    let expr = if let Some(expr) = expr {
+                        let expr = self.typecheck_expr(expr)?;
+                        self.ty_env().unifier.unify_ty_ty(&expr.ty, &block_ty)?;
+                        Some(Box::new(expr))
+                    } else {
+                        self.ty_env().unifier.unify_ty_ty(&Ty::Never, &block_ty)?;
+                        None
+                    };
+
+                    tir::StatementKind::Return(expr)
+                }
+
                 // Typecheck an expression
                 ast::StatementKind::Expr(expr) => {
                     // Typecheck the expression
                     let expr = self.typecheck_expr(expr)?;
 
-                    // Is this an explicit return?
-                    match expr.kind {
-                        tir::ExprKind::Return(_) => {
-                            saw_return = true;
-                            self.ty_env().unifier.unify_ty_ty(&expr.ty, &block_ty)?;
-                        }
-                        _ => {}
-                    }
-
                     // An implicit return?
                     if is_last && !statement.has_semi {
                         saw_return = true;
                         self.ty_env().unifier.unify_ty_ty(&expr.ty, &block_ty)?;
+                        tir::StatementKind::Return(Some(Box::new(expr)))
+                    } else {
+                        // Create expression statement kind
+                        tir::StatementKind::Expr(Box::new(expr))
                     }
-
-                    // Create statement kind
-                    tir::StatementKind::Expr(Box::new(expr))
                 }
             };
 
@@ -280,7 +293,6 @@ impl Tyc {
                 self.equate_tys(&expr1.ty, &expr2.ty)?;
 
                 // The result type should be the same as the input types
-                // TODO: is this right? It feels right
                 let ty = expr1.ty.clone();
 
                 (tir::ExprKind::Binary(op, (expr1, expr2)), ty)
@@ -291,8 +303,11 @@ impl Tyc {
                 let expr = Box::new(self.typecheck_expr(expr)?);
 
                 // The result type should be the same as the input type
-                // TODO: is this right? It feels right
                 let ty = expr.ty.clone();
+
+                // In the case of negation, the argument must also be negatable
+                // right now that is just a signed int
+                self.equate_tys(&ty, &Ty::Primitive(PrimitiveTy::SInt))?;
 
                 (tir::ExprKind::Unary(op, expr), ty)
             }
@@ -311,16 +326,6 @@ impl Tyc {
                 self.equate_tys(&ident_ty, &expr.ty)?;
 
                 (tir::ExprKind::Assign(name_id, expr), ident_ty)
-            }
-
-            ast::ExprKind::Return(expr) => {
-                let expr = if let Some(expr) = expr {
-                    Some(Box::new(self.typecheck_expr(expr)?))
-                } else {
-                    None
-                };
-
-                (tir::ExprKind::Return(expr), Ty::Never)
             }
 
             ast::ExprKind::Name(symbol_id) => {
@@ -378,10 +383,7 @@ impl Tyc {
                 }
 
                 // Create a declaration in scope
-                let name_id = self
-                    .ty_env()
-                    .current_scope()
-                    .declare_ident(binding.name, &expr.ty);
+                let name_id = self.ty_env().declare_ident(binding.name, &expr.ty);
 
                 // Note: the "type" of this expression is Never because a let isn't
                 (tir::ExprKind::Let(name_id, Box::new(expr)), Ty::Never)

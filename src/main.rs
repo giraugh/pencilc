@@ -53,7 +53,7 @@ fn compile(source_path: &Path) {
         .unwrap_or_else(|e| panic!("{}", e));
 
     // Codegen
-    let context = inkwell::context::Context::create();
-    let mut codegen = Codegen::new(&context);
-    codegen.compile(root_module).expect("codegen error");
+    Codegen::compile(root_module).expect("codegen error");
+
+    eprintln!("done");
 }

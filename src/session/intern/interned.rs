@@ -1,9 +1,8 @@
+use super::{Intern, InternPoolExt, InternPoolRef};
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
 };
-
-use super::{Intern, InternPoolRef};
 
 #[derive(Clone)]
 pub struct Interned<T: Intern> {
@@ -13,21 +12,23 @@ pub struct Interned<T: Intern> {
 
 impl<T: Intern + Display> Debug for Interned<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use super::InternPoolExt;
-        write!(f, "`{}`", self.pool.get(self.id).unwrap())
+        write!(f, "`{}`", self.get())
     }
 }
 
 impl<T: Intern + Display> Display for Interned<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use super::InternPoolExt;
-        write!(f, "{}", self.pool.get(self.id).unwrap())
+        write!(f, "{}", self.get())
     }
 }
 
 impl<T: Intern> Interned<T> {
     pub fn id(&self) -> T::Id {
         self.id
+    }
+
+    pub fn get(&self) -> T {
+        self.pool.get(self.id).unwrap()
     }
 }
 

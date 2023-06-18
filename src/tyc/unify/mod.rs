@@ -43,11 +43,14 @@ impl Unifier {
                 .unify_var_var(a, b)
                 .expect("Unifying two unbound values shouldnt fail")),
 
-            // This handles unifying with primitive types
-            (&Ty::Infer(inf), prim @ &Ty::Primitive(_))
-            | (prim @ &Ty::Primitive(_), &Ty::Infer(inf)) => Ok(self
-                .table
-                .unify_var_value(inf, TyInferValue::Bound(prim.clone()))?),
+            // This handles unifying with non infer types
+            (&Ty::Infer(inf), concrete) | (concrete, &Ty::Infer(inf))
+                if !matches!(concrete, &Ty::Infer(_)) =>
+            {
+                Ok(self
+                    .table
+                    .unify_var_value(inf, TyInferValue::Bound(concrete.clone()))?)
+            }
 
             // If they aren't infer then they must be the same after normalization
             (a, b) if a == b => Ok(()),
@@ -84,7 +87,7 @@ impl Unifier {
                     // If unbound but integral, try falling back to an integer
                     TyInferValue::Unbound(InferValueKind::Integral) => {
                         // If we can unify it with an int we will do that
-                        let prim_int = Ty::Primitive(ty::PrimitiveTy::Int);
+                        let prim_int = Ty::Primitive(ty::PrimitiveTy::SInt);
                         self.unify_ty_ty(ty, &prim_int).and_then(|_| Ok(prim_int))
                     }
 
@@ -123,7 +126,7 @@ mod test {
         let tv_x = unifier.normalize_final(&tv_x).unwrap();
 
         // We should get back a concrete int type
-        assert_eq!(tv_x, ty::Ty::Primitive(ty::PrimitiveTy::Int));
+        assert_eq!(tv_x, ty::Ty::Primitive(ty::PrimitiveTy::SInt));
     }
 
     #[test]
@@ -143,7 +146,7 @@ mod test {
 
         // When we get to y we have a binding so we know its type
         // we dont have to create a type variable here because all the types are known
-        let ty_y = Ty::Primitive(ty::PrimitiveTy::Int);
+        let ty_y = Ty::Primitive(ty::PrimitiveTy::SInt);
 
         // Then when we get to x = y
         // We can find the type of y in our type environment and then we can unify x with the type
@@ -185,7 +188,7 @@ mod test {
         // now we can unify x with int
 
         // Pretend we tc'd the expression to get this type
-        let int_ty = Ty::Primitive(ty::PrimitiveTy::Int);
+        let int_ty = Ty::Primitive(ty::PrimitiveTy::SInt);
         unifier.unify_ty_ty(&tv_x_ty, &int_ty).unwrap();
 
         // Get normalized tv_x (it should be an int)

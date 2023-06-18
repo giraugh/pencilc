@@ -208,6 +208,26 @@ impl<'a> Parser<'a> {
 
         // Parse kind
         let kind = match self.peek_kind() {
+            // Return
+            TokenKind::Ident(i) if i.is_kw(Kw::Return) => {
+                // Eat the return
+                self.bump();
+
+                // Expression?
+                let expr = match self.peek_kind() {
+                    // No expression
+                    TokenKind::Semi | TokenKind::CloseDelimeter(Delimeter::Brace) => None,
+
+                    _ => {
+                        // Parse an expression
+                        let expr = Box::new(self.parse_expr()?);
+                        Some(expr)
+                    }
+                };
+
+                ast::StatementKind::Return(expr)
+            }
+
             // Expression
             _ => {
                 let expr = Box::new(self.parse_expr()?);
@@ -278,26 +298,6 @@ impl<'a> Parser<'a> {
 
                 // Create let
                 ast::ExprKind::Let(binding, expr)
-            }
-
-            // Parse return
-            (TokenKind::Ident(symbol), _) if symbol.is_kw(Kw::Return) => {
-                // Eat the return
-                self.bump();
-
-                // Expression?
-                let expr = match self.peek_kind() {
-                    // No expression
-                    TokenKind::Semi | TokenKind::CloseDelimeter(Delimeter::Brace) => None,
-
-                    _ => {
-                        // Parse an expression
-                        let expr = Box::new(self.parse_expr()?);
-                        Some(expr)
-                    }
-                };
-
-                ast::ExprKind::Return(expr)
             }
 
             // Parse a numeric

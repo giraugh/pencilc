@@ -49,7 +49,7 @@ impl InferValueKind {
     pub fn can_unify_with(&self, ty: &Ty) -> bool {
         match (self, ty) {
             (&Self::General, _) => true,
-            (&Self::Integral, Ty::Primitive(PrimitiveTy::Int | PrimitiveTy::UInt)) => true,
+            (&Self::Integral, Ty::Primitive(PrimitiveTy::SInt | PrimitiveTy::UInt)) => true,
             _ => false,
         }
     }

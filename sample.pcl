@@ -1,11 +1,10 @@
-fn main() {
+fn sample(x: int) -> int {
   // Define variables
-  let x: int = 1;
   let y = 2 * 10;
-  let s = "hi world";
 
   // Compute sum
-  let sum = 10 + other(x, y + 1);
+  let sum = 10 + other(x, y + 2);
+  return sum;
 }
 
 fn other(a: int, b: int) -> int {
