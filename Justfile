@@ -14,16 +14,16 @@ clean:
   rm -f *.ll
   rm -f *.bc
   rm -f *.o
-  rm fixture
+  rm -f fixture
 
 sample-ir:
   just clean
-  PENCILC_BC_OUT=1 cargo run -- sample.pcl
+  cargo run -- --emit llvm-bc -o sample.bc sample.pcl
   llvm-dis sample.bc
   rm sample.bc
 
 fixture:
   just clean
-  PENCILC_BC_OUT=1 cargo run -- sample.pcl
+  cargo run -- --emit llvm-bc -o sample.bc sample.pcl
   llc sample.bc -filetype=obj -o sample.o
   clang sample.o fixture.c -o fixture

@@ -1,5 +1,6 @@
-use std::{env, fs, path::Path, rc::Rc, sync::RwLock};
+use std::{fs, path::Path, rc::Rc, sync::RwLock};
 
+use cli::CliArgs;
 use codegen::Codegen;
 use lex::TokenLexer;
 use parse::Parser;
@@ -7,6 +8,7 @@ use session::Session;
 use tyc::Tyc;
 
 pub(crate) mod ast;
+mod cli;
 pub(crate) mod codegen;
 pub(crate) mod error;
 pub(crate) mod id;
@@ -17,18 +19,35 @@ pub(crate) mod span;
 pub(crate) mod tyc;
 
 fn main() {
-    // First argument is source input
-    let source_path = env::args()
-        .nth(1)
-        .expect("Expected a path to a source file as the first argument");
+    use clap::Parser;
+    let cli_args = CliArgs::parse();
 
-    // Read the source file
-    let source_path = Path::new(&source_path);
-    compile(source_path);
+    // Compile each input
+    // for now we dont link them
+    // so just use the first input
+    let source_path = cli_args
+        .inputs
+        .first()
+        .expect("Expected at least one input file");
+
+    // Determine module name from path
+    let module_name = source_path
+        .file_stem()
+        .expect("To be able to determine module name")
+        .to_str()
+        .expect("To be able to determine module name");
+
+    // Compile it
+    compile(
+        &source_path,
+        &cli_args.get_output(module_name),
+        &module_name,
+        &cli_args.emit,
+    );
 }
 
-fn compile(source_path: &Path) {
-    let source_text = fs::read_to_string(source_path).expect("Can't read source file");
+fn compile(input_path: &Path, output_path: &Path, module_name: &str, emit: &cli::Output) {
+    let source_text = fs::read_to_string(input_path).expect("Can't read source file");
 
     // Initialise a compilation session
     let session = Rc::new(RwLock::new(Session::new(&source_text)));
@@ -39,11 +58,6 @@ fn compile(source_path: &Path) {
 
     // Create parser
     let mut parser = Parser::new(session.clone(), tokens);
-    let module_name = source_path
-        .file_stem()
-        .expect("To be able to determine module name")
-        .to_str()
-        .expect("To be able to determine module name");
     let root_module = parser.parse_module(module_name).expect("parsing error");
 
     // Typecheck
@@ -53,7 +67,11 @@ fn compile(source_path: &Path) {
         .unwrap_or_else(|e| panic!("{}", e));
 
     // Codegen
-    Codegen::compile(root_module).expect("codegen error");
-
-    eprintln!("done");
+    let session = inkwell::context::Context::create();
+    let codegen = Codegen::codegen_module(&session, root_module).expect("codegen error");
+    match *emit {
+        cli::Output::LlvmIr => codegen.emit_llvm_ir(output_path),
+        cli::Output::LlvmBc => codegen.emit_llvm_bc(output_path),
+        cli::Output::Obj => { /* Do nothing here, need all modules compiled first */ }
+    }
 }

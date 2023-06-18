@@ -28,10 +28,24 @@ pub struct Codegen<'ctx> {
 type Result<T> = std::result::Result<T, CodegenError>;
 
 impl<'ctx> Codegen<'ctx> {
-    pub fn compile(root_module: tir::Module) -> Result<()> {
+    pub fn emit_llvm_ir(&self, output_path: &Path) {
+        self.module.print_to_file(output_path).unwrap();
+    }
+
+    pub fn emit_llvm_bc(&self, output_path: &Path) {
+        self.module.write_bitcode_to_path(output_path);
+    }
+
+    pub fn emit_obj(&self, output_path: &Path) {
+        todo!()
+    }
+
+    pub fn codegen_module(
+        context: &'ctx Context,
+        root_module_node: tir::Module,
+    ) -> Result<Codegen<'ctx>> {
         // Create llvm context and module
-        let context = Context::create();
-        let module = context.create_module(&root_module.name);
+        let module = context.create_module(&root_module_node.name);
 
         // Create codegen
         let codegen = Codegen {
@@ -41,16 +55,16 @@ impl<'ctx> Codegen<'ctx> {
             module,
         };
 
-        // Compile a prototype for each function
+        // Codegen a prototype for each function
         let mut fns = vec![];
-        for function in root_module.functions {
-            let func_val = codegen.compile_function_proto(*function.decl.clone())?;
+        for function in root_module_node.functions {
+            let func_val = codegen.codegen_function_proto(*function.decl.clone())?;
             fns.push((function, func_val));
         }
 
-        // Compile each function
+        // Codegen each function
         for (fn_node, fn_val) in fns {
-            codegen.compile_function(fn_val, fn_node)?;
+            codegen.codegen_function(fn_val, fn_node)?;
         }
 
         // Validate module
@@ -59,17 +73,10 @@ impl<'ctx> Codegen<'ctx> {
             .verify()
             .map_err(|llvm_str| CodegenError::ModuleVerificationError(llvm_str))?;
 
-        // Output bc
-        if env::var("PENCILC_BC_OUT").is_ok() {
-            codegen
-                .module
-                .write_bitcode_to_path(Path::new(&format!("{}.bc", root_module.name)));
-        }
-
-        Ok(())
+        Ok(codegen)
     }
 
-    fn compile_function_proto(&self, fn_decl_node: tir::FnDecl) -> Result<FunctionValue<'ctx>> {
+    fn codegen_function_proto(&self, fn_decl_node: tir::FnDecl) -> Result<FunctionValue<'ctx>> {
         // Resolve parameter types
         let param_types = fn_decl_node
             .sig
@@ -96,7 +103,7 @@ impl<'ctx> Codegen<'ctx> {
         Ok(func)
     }
 
-    fn compile_function(&self, func: FunctionValue<'ctx>, fn_node: tir::FnDef) -> Result<()> {
+    fn codegen_function(&self, func: FunctionValue<'ctx>, fn_node: tir::FnDef) -> Result<()> {
         // Create entry basic block
         let basic_block = self.context.append_basic_block(func, "entry");
         self.builder.position_at_end(basic_block);
@@ -111,29 +118,29 @@ impl<'ctx> Codegen<'ctx> {
             }
         }
 
-        // Now we compile each statement
+        // Now we codegen each statement
         // if we hit control flow then we create new basic blocks
         // Im not sure whether we do that for inner blocks. Maybe?
         // there's probably no point. they exist primarily for scoping
         // but are there cases where it does matter?
         for statement in fn_node.body.block.statements {
-            self.compile_statement(statement)?;
+            self.codegen_statement(statement)?;
         }
 
         Ok(())
     }
 
-    fn compile_statement(&self, statement_node: tir::Statement) -> Result<()> {
+    fn codegen_statement(&self, statement_node: tir::Statement) -> Result<()> {
         match statement_node.kind {
             tir::StatementKind::Expr(expr) => {
-                self.compile_expr(*expr)?;
+                self.codegen_expr(*expr)?;
             }
             tir::StatementKind::Return(expr) => match expr {
                 None => {
                     self.builder.build_return(None);
                 }
                 Some(expr) => {
-                    let expr = self.compile_expr(*expr)?;
+                    let expr = self.codegen_expr(*expr)?;
                     self.builder.build_return(Some(&expr));
                 }
             },
@@ -163,11 +170,11 @@ impl<'ctx> Codegen<'ctx> {
         Ok(alloca)
     }
 
-    fn compile_expr(&self, expr_node: tir::Expr) -> Result<BasicValueEnum> {
+    fn codegen_expr(&self, expr_node: tir::Expr) -> Result<BasicValueEnum> {
         let value = match expr_node.kind {
             tir::ExprKind::Let(name_id, expr) => {
                 // Create value to bind
-                let value = self.compile_expr(*expr.clone())?;
+                let value = self.codegen_expr(*expr.clone())?;
 
                 // Create variable
                 // TODO: sidenote, it would be nice if the name_id also contained the original
@@ -208,11 +215,11 @@ impl<'ctx> Codegen<'ctx> {
             tir::ExprKind::Unary(_, _) => todo!(),
 
             tir::ExprKind::Binary(op, (lhs, rhs)) => {
-                // Compile operands
-                let lhs = self.compile_expr(*lhs)?;
-                let rhs = self.compile_expr(*rhs)?;
+                // Codegen operands
+                let lhs = self.codegen_expr(*lhs)?;
+                let rhs = self.codegen_expr(*rhs)?;
 
-                // Compile operation
+                // Codegen operation
                 let value = match op {
                     BinaryOpt::Add => match expr_node.ty {
                         // Adding ints and uints is the same instr
@@ -322,7 +329,7 @@ impl<'ctx> Codegen<'ctx> {
                 let func = self.module.get_function(&symbol.get().to_string()).unwrap();
                 let args = arguments
                     .into_iter()
-                    .map(|arg_expr| self.compile_expr(arg_expr).map(|v| v.into()))
+                    .map(|arg_expr| self.codegen_expr(arg_expr).map(|v| v.into()))
                     .collect::<Result<Vec<_>>>()?;
                 let call = self.builder.build_call(
                     func,
