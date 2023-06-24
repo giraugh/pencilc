@@ -65,6 +65,7 @@ pub struct FnDef {
 pub struct FnBody {
     pub block: Box<Block>,
     pub param_names: Vec<NameId>,
+    pub has_return: bool,
 }
 
 #[derive(Debug, PartialEq, Clone)]

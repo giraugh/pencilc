@@ -1,3 +1,5 @@
+use crate::error::TypeError;
+
 use super::{tir, Result, Ty, Tyc};
 
 impl Tyc {
@@ -51,16 +53,22 @@ impl Tyc {
                         .collect::<Result<Vec<_>>>()?,
                 ),
 
-                tir::ExprKind::Binary(opt, (expr1, expr2)) => tir::ExprKind::Binary(
-                    opt,
-                    (
-                        Box::new(self.norm_expr(*expr1, fin)?),
-                        Box::new(self.norm_expr(*expr2, fin)?),
-                    ),
-                ),
+                tir::ExprKind::Binary(opt, (expr1, expr2)) => {
+                    let expr1 = Box::new(self.norm_expr(*expr1, fin)?);
+                    let expr2 = Box::new(self.norm_expr(*expr2, fin)?);
+                    if !expr1.ty.can_do_binop(&opt) {
+                        return Err(TypeError::InvalidBinaryOpt(opt, expr1.ty.clone()));
+                    }
+
+                    tir::ExprKind::Binary(opt, (expr1, expr2))
+                }
 
                 tir::ExprKind::Unary(opt, expr) => {
-                    tir::ExprKind::Unary(opt, Box::new(self.norm_expr(*expr, fin)?))
+                    let expr = Box::new(self.norm_expr(*expr, fin)?);
+                    if !expr.ty.can_do_unaryop(&opt) {
+                        return Err(TypeError::InvalidUnaryOpt(opt, expr.ty.clone()));
+                    }
+                    tir::ExprKind::Unary(opt, expr)
                 }
 
                 tir::ExprKind::Assign(name, expr) => {

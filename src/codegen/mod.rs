@@ -1,7 +1,7 @@
 use std::{collections::HashMap, env, path::Path, rc::Rc, sync::RwLock};
 
 use crate::{
-    ast::BinaryOpt,
+    ast::{BinaryOpt, UnaryOpt},
     error::CodegenError,
     id::{Idx, NameId},
     lex::LiteralValue,
@@ -120,11 +120,13 @@ impl<'ctx> Codegen<'ctx> {
 
         // Now we codegen each statement
         // if we hit control flow then we create new basic blocks
-        // Im not sure whether we do that for inner blocks. Maybe?
-        // there's probably no point. they exist primarily for scoping
-        // but are there cases where it does matter?
         for statement in fn_node.body.block.statements {
             self.codegen_statement(statement)?;
+        }
+
+        // Create return?
+        if !fn_node.body.has_return {
+            self.builder.build_return(None);
         }
 
         Ok(())
@@ -212,7 +214,33 @@ impl<'ctx> Codegen<'ctx> {
                 .into(),
             },
 
-            tir::ExprKind::Unary(_, _) => todo!(),
+            tir::ExprKind::Unary(op, expr) => {
+                // Evaluate expression
+                let expr = self.codegen_expr(*expr)?;
+
+                // Codegen operation
+                match op {
+                    UnaryOpt::Negate => match expr_node.ty {
+                        Ty::Primitive(PrimitiveTy::SInt | PrimitiveTy::UInt) => self
+                            .builder
+                            .build_int_neg(
+                                expr.into_int_value(),
+                                &format!("{}_neg", expr_node.id.index()),
+                            )
+                            .into(),
+
+                        Ty::Primitive(PrimitiveTy::Float) => self
+                            .builder
+                            .build_float_neg(
+                                expr.into_float_value(),
+                                &format!("{}_neg", expr_node.id.index()),
+                            )
+                            .into(),
+
+                        _ => todo!("Don't know how to negate that"),
+                    },
+                }
+            }
 
             tir::ExprKind::Binary(op, (lhs, rhs)) => {
                 // Codegen operands
@@ -359,8 +387,24 @@ impl<'ctx> Codegen<'ctx> {
                 load.into()
             }
 
-            tir::ExprKind::Assign(_, _) => todo!(),
-            tir::ExprKind::Block(_) => todo!(),
+            tir::ExprKind::Assign(name_id, expr) => {
+                // Find the pointer for the name
+                let ptr_value = *self.name_ptr_map.try_read().unwrap().get(&name_id).unwrap();
+
+                // Codegen the expr
+                let value = self.codegen_expr(*expr)?;
+
+                // Store it
+                self.builder.build_store(ptr_value, value);
+
+                // The ident ref is the value of this expr
+                ptr_value.into()
+            }
+
+            tir::ExprKind::Block(block) => {
+                // Codegen each statement
+                todo!()
+            }
         };
 
         Ok(value)

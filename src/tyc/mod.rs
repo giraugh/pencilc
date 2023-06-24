@@ -16,8 +16,22 @@ use ty::*;
 use self::ty_env::TyEnv;
 
 pub struct Tyc {
+    /// The signature of all top level functions in the module
+    /// These are collected before the body of the functions are typechecked
+    /// this is so that we know the type of function calls within function bodies
     func_sigs: HashMap<Symbol, tir::FnSig>,
+
+    /// The current type environment. Is initialised when typechecking a function
+    /// contains inference info, the namespace and scope stack etc
     ty_env: Option<TyEnv>,
+
+    /// The type of the current outer block
+    /// there is only one at a time but there may not be one at a given time
+    /// this is used so that return expressions deep in a function ast can
+    /// inform the function return type
+    /// currently the only type of outer block is a function but it could be expanded
+    /// to lambdas etc
+    current_outer_type: Option<Ty>,
 }
 
 type Result<T> = std::result::Result<T, TypeError>;
@@ -27,6 +41,7 @@ impl Tyc {
         Self {
             func_sigs: Default::default(),
             ty_env: None,
+            current_outer_type: None,
         }
     }
 
@@ -46,7 +61,7 @@ impl Tyc {
         self.ty_env().unifier.unify_ty_ty(ty_a, ty_b)
     }
 
-    pub fn resolve_type_expr(&mut self, ty_expr: Box<ast::TyExpr>) -> Result<Ty> {
+    pub fn resolve_type_expr(&mut self, ty_expr: ast::TyExpr) -> Result<Ty> {
         match ty_expr.kind {
             ast::TyExprKind::Name(ident) => {
                 // Is it a primitive?
@@ -129,7 +144,7 @@ impl Tyc {
             .map(|param| match param.ty {
                 Some(ty_expr) => Ok(tir::Param {
                     name: param.name,
-                    ty: self.resolve_type_expr(ty_expr)?,
+                    ty: self.resolve_type_expr(*ty_expr)?,
                 }),
                 None => Err(TypeError::MissingParameterType(param.clone())),
             })
@@ -138,7 +153,7 @@ impl Tyc {
 
         // Parse the return type
         let ty = match fn_decl.ty {
-            Some(ty_expr) => self.resolve_type_expr(ty_expr)?,
+            Some(ty_expr) => self.resolve_type_expr(*ty_expr)?,
             None => Ty::Never,
         };
 
@@ -149,10 +164,7 @@ impl Tyc {
         })
     }
 
-    /// Type check a top level body
-    /// Effectively a block that has no parent block scope,
-    /// (for now this is just function bodies)
-    // TODO: should this return a "Body" rather than a "Block"?
+    /// Type check a function body
     pub fn typecheck_function_body(
         &mut self,
         name: Symbol,
@@ -172,9 +184,8 @@ impl Tyc {
             .map(|param| self.ty_env().declare_ident(param.name.clone(), &param.ty))
             .collect();
 
-        // Typecheck the inner block
-        // note: we dont let this fn call manage the scope, we do that for the top level scope
-        let typed_block = self.typecheck_block(block, false)?;
+        // Typecheck the outer block
+        let (typed_block, has_return) = self.typecheck_outer_block(*block)?;
 
         // Check return type
         self.equate_tys(&typed_block.ty, &sig.ty)
@@ -194,28 +205,76 @@ impl Tyc {
         // Return type
         Ok(tir::FnBody {
             block: Box::new(normalized_block),
+            has_return,
             param_names,
         })
     }
 
-    /// Typecheck a block that *may* exist inside a parent block scope
-    pub fn typecheck_block(
+    /// Typecheck a block that doesnt exist inside a parent block scope
+    pub fn typecheck_outer_block(
         &mut self,
-        block: Box<ast::Block>,
-        create_scope: bool,
-    ) -> Result<tir::Block> {
-        // Start a new scope
-        if create_scope {
-            self.ty_env().new_scope();
+        block: ast::Block,
+    ) -> Result<(tir::Block, bool /* has return */)> {
+        // Set the current outer block type to a new inference variable
+        self.current_outer_type = Some(
+            self.ty_env()
+                .unifier
+                .new_variable(InferValueKind::General)
+                .to_ty(),
+        );
+
+        // Typecheck the inner block
+        let mut block = self.typecheck_inner_block(block)?;
+
+        // Equate the return types
+        // (i.e the implicit value of the block needs to match any returns within the block)
+        // because if the inner has `Never` then it means it doesn't have a final return
+        // If the block has a type then it must equate
+        if !matches!(block.ty, Ty::Never) {
+            let cot = self.current_outer_type.as_ref().unwrap().clone();
+            self.equate_tys(&block.ty, &cot)?;
         }
 
-        // Create infer type for block return
-        let mut saw_return = false;
-        let block_ty = self
-            .ty_env()
-            .unifier
-            .new_variable(InferValueKind::General)
-            .to_ty();
+        // If the block has no explicit final return statement, then we need to create one
+        // Note: if there is also no implicit return we don't create one here
+        let mut has_return = false;
+        let last_statement_kind = block.statements.last().map(|l| l.kind.clone());
+        match last_statement_kind {
+            Some(tir::StatementKind::Return(_)) => {
+                has_return = true;
+            }
+            Some(tir::StatementKind::Expr(expr)) => {
+                if !matches!(block.ty, Ty::Never) {
+                    // We transform the final statement into a return
+                    let last_stmnt = block.statements.last_mut().unwrap();
+                    *last_stmnt = tir::Statement {
+                        kind: tir::StatementKind::Return(Some(expr)),
+                        ..*last_stmnt
+                    };
+
+                    has_return = true;
+                }
+            }
+            None => {}
+        }
+
+        // Update the type of the block
+        let ty = self.current_outer_type.clone().unwrap_or(Ty::Never);
+        let outer_block = tir::Block { ty, ..block };
+
+        // Discard the outer type
+        self.current_outer_type = None;
+
+        // Return the block
+        Ok((outer_block, has_return))
+    }
+
+    pub fn typecheck_inner_block(&mut self, block: ast::Block) -> Result<tir::Block> {
+        // Start a new scope
+        self.ty_env().new_scope();
+
+        // Create infer type for block type
+        let mut block_ty = None;
 
         // Parse each statement
         let mut statements = Vec::new();
@@ -224,18 +283,19 @@ impl Tyc {
             let kind = match statement.kind {
                 // Typecheck an explicit return
                 ast::StatementKind::Return(expr) => {
-                    // We've seen a return
-                    saw_return = true;
-
                     // Typecheck the expression
                     let expr = if let Some(expr) = expr {
-                        let expr = self.typecheck_expr(expr)?;
-                        self.ty_env().unifier.unify_ty_ty(&expr.ty, &block_ty)?;
+                        let expr = self.typecheck_expr(*expr)?;
                         Some(Box::new(expr))
                     } else {
-                        self.ty_env().unifier.unify_ty_ty(&Ty::Never, &block_ty)?;
                         None
                     };
+
+                    // tell current outer block that we saw a return with this type
+                    let effective_ty = expr.clone().map(|e| e.ty).unwrap_or(Ty::Never);
+                    if let Some(cot) = self.current_outer_type.clone() {
+                        self.equate_tys(&cot, &effective_ty)?;
+                    }
 
                     tir::StatementKind::Return(expr)
                 }
@@ -243,17 +303,15 @@ impl Tyc {
                 // Typecheck an expression
                 ast::StatementKind::Expr(expr) => {
                     // Typecheck the expression
-                    let expr = self.typecheck_expr(expr)?;
+                    let expr = self.typecheck_expr(*expr)?;
 
-                    // An implicit return?
+                    // If this is the final expression and not a semi then its the type of the
+                    // block
                     if is_last && !statement.has_semi {
-                        saw_return = true;
-                        self.ty_env().unifier.unify_ty_ty(&expr.ty, &block_ty)?;
-                        tir::StatementKind::Return(Some(Box::new(expr)))
-                    } else {
-                        // Create expression statement kind
-                        tir::StatementKind::Expr(Box::new(expr))
+                        block_ty = Some(expr.ty.clone());
                     }
+
+                    tir::StatementKind::Expr(Box::new(expr))
                 }
             };
 
@@ -266,12 +324,10 @@ impl Tyc {
         }
 
         // After parsing all of them, can we infer the return type?
-        let block_ty = if saw_return { block_ty } else { Ty::Never };
+        let block_ty = block_ty.unwrap_or(Ty::Never);
 
         // Pop the scope
-        if create_scope {
-            self.ty_env().pop_scope();
-        }
+        self.ty_env().pop_scope();
 
         Ok(tir::Block {
             ty: block_ty,
@@ -281,13 +337,13 @@ impl Tyc {
         })
     }
 
-    pub fn typecheck_expr(&mut self, expr: Box<ast::Expr>) -> Result<tir::Expr> {
+    pub fn typecheck_expr(&mut self, expr: ast::Expr) -> Result<tir::Expr> {
         // Typecheck kind
         let (kind, ty) = match expr.kind {
             ast::ExprKind::Binary(op, (expr1, expr2)) => {
                 // Typecheck the expression on their own
-                let expr1 = Box::new(self.typecheck_expr(expr1)?);
-                let expr2 = Box::new(self.typecheck_expr(expr2)?);
+                let expr1 = Box::new(self.typecheck_expr(*expr1)?);
+                let expr2 = Box::new(self.typecheck_expr(*expr2)?);
 
                 // They should be the same type
                 self.equate_tys(&expr1.ty, &expr2.ty)?;
@@ -300,7 +356,7 @@ impl Tyc {
 
             ast::ExprKind::Unary(op, expr) => {
                 // Typecheck the expression
-                let expr = Box::new(self.typecheck_expr(expr)?);
+                let expr = Box::new(self.typecheck_expr(*expr)?);
 
                 // The result type should be the same as the input type
                 let ty = expr.ty.clone();
@@ -320,7 +376,7 @@ impl Tyc {
                     .ok_or(TypeError::UnknownIdent(symbol_id))?;
 
                 // Typecheck expr
-                let expr = Box::new(self.typecheck_expr(expr)?);
+                let expr = Box::new(self.typecheck_expr(*expr)?);
 
                 // Expr should match ident type
                 self.equate_tys(&ident_ty, &expr.ty)?;
@@ -345,7 +401,7 @@ impl Tyc {
                     .into_iter()
                     .zip(sig.params)
                     .map(|(param_expr, sig_param)| {
-                        let expr = self.typecheck_expr(Box::new(param_expr))?;
+                        let expr = self.typecheck_expr(param_expr)?;
                         self.equate_tys(&expr.ty, &sig_param.ty)?;
                         Ok(expr)
                     })
@@ -374,11 +430,11 @@ impl Tyc {
             // Type check a let binding
             ast::ExprKind::Let(binding, expr) => {
                 // First parse the expr
-                let expr = self.typecheck_expr(expr)?;
+                let expr = self.typecheck_expr(*expr)?;
 
                 // If the binding has a type, it must unify with the expression
                 if let Some(binding_ty) = binding.ty {
-                    let ty = self.resolve_type_expr(binding_ty)?;
+                    let ty = self.resolve_type_expr(*binding_ty)?;
                     self.equate_tys(&ty, &expr.ty)?;
                 }
 
@@ -391,7 +447,7 @@ impl Tyc {
 
             // Type check a block expression
             ast::ExprKind::Block(block) => {
-                let block = self.typecheck_block(block, true)?;
+                let block = self.typecheck_inner_block(*block)?;
                 let ty = block.ty.clone();
                 (tir::ExprKind::Block(Box::new(block)), ty)
             }

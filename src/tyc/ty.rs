@@ -1,6 +1,10 @@
 use std::fmt::Display;
 
-use crate::{lex::Kw, session::symbol::Symbol};
+use crate::{
+    ast::{BinaryOpt, UnaryOpt},
+    lex::Kw,
+    session::symbol::Symbol,
+};
 
 use super::unify::TyInferVar;
 
@@ -48,6 +52,41 @@ impl Display for Ty {
             Primitive(p) => write!(f, "{}", p),
             Infer(var) => write!(f, "Infer<{}>", var.index()),
             Never => write!(f, "!"),
+        }
+    }
+}
+
+impl Ty {
+    pub fn can_do_binop(&self, opt: &BinaryOpt) -> bool {
+        match &self {
+            &Ty::Primitive(primitive_ty) => match (primitive_ty, opt) {
+                // Exponentation isn't supported
+                (_, BinaryOpt::Exponentiate) => false,
+
+                // No string operations are implemented yet
+                (PrimitiveTy::Str, _) => false,
+
+                // All remaining operations are permitted with integers
+                (PrimitiveTy::UInt | PrimitiveTy::SInt, _) => true,
+
+                // All remaining operations are permitted with floats
+                (PrimitiveTy::Float, _) => true,
+
+                // Booleans currently support no operations // TODO: logical operators
+                (PrimitiveTy::Bool, _) => false,
+            },
+            _ => false,
+        }
+    }
+
+    pub fn can_do_unaryop(&self, opt: &UnaryOpt) -> bool {
+        match &self {
+            &Ty::Primitive(primitive_ty) => match (primitive_ty, opt) {
+                (PrimitiveTy::UInt | PrimitiveTy::SInt, _) => true,
+                (PrimitiveTy::Float, _) => true,
+                _ => false,
+            },
+            _ => false,
         }
     }
 }

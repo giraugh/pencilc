@@ -1,5 +1,5 @@
 use crate::{
-    ast,
+    ast::{self, BinaryOpt, UnaryOpt},
     session::symbol::Symbol,
     tyc::{ty::Ty, InferValueKind},
 };
@@ -29,4 +29,10 @@ pub enum TypeError {
 
     #[error("Cant determine type")]
     AmbiguousType,
+
+    #[error("Cannot apply binary operator {0} to {1} types")]
+    InvalidBinaryOpt(BinaryOpt, Ty),
+
+    #[error("Cannot apply unary operator {0} to {1} type")]
+    InvalidUnaryOpt(UnaryOpt, Ty),
 }

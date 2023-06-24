@@ -1,0 +1,41 @@
+fn foo() {
+  // If expression
+  let x = if cond { 1 } else { 2 };
+  if cond { 1 }
+
+  // For loop expression
+  let nums = for x in [1..10] {
+    x * 2
+  };
+
+  // For loop statement
+  for x in 1..14 {
+
+  }
+
+  // Break statement
+  break;
+
+  // Continue statement
+  continue;
+
+  // While statement
+  while cond {
+    // stuff
+  }
+
+  // While expression
+  let nums = while cond {
+    1
+  };
+
+  // loop statement
+  loop {
+    if (!cond) break  
+  }
+
+  // Loop expression
+  let nums = loop {
+    1
+  };
+}

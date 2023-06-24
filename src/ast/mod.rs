@@ -1,6 +1,7 @@
 use crate::id::{BlockId, ExprId, StatementId};
 use crate::session::symbol::Symbol;
 use crate::{lex::LiteralValue, span::Span};
+use strum_macros::Display;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Module {
@@ -93,17 +94,27 @@ pub enum TyExprKind {
 }
 
 #[allow(unused)]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Display)]
 pub enum BinaryOpt {
+    #[strum(serialize = "+")]
     Add,
+
+    #[strum(serialize = "-")]
     Subtract,
+
+    #[strum(serialize = "*")]
     Multiply,
+
+    #[strum(serialize = "/")]
     Divide,
+
+    #[strum(serialize = "^")]
     Exponentiate,
 }
 
 #[allow(unused)]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Display)]
 pub enum UnaryOpt {
+    #[strum(serialize = "-")]
     Negate,
 }
