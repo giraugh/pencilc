@@ -4,7 +4,7 @@ use std::vec;
 use crate::{
     error::ParseError,
     id::{BlockId, ExprId, StatementId},
-    lex::{Token, TokenKind},
+    lex::{Kw, Token, TokenKind},
     session::{symbol::Symbol, SessionRef},
     span::{CharPos, Span},
 };
@@ -38,6 +38,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_ident(&mut self) -> Result<Symbol> {
+        // TODO: this should probably error if the ident is reserved
         match self.bump() {
             Some(token) => match token.kind {
                 TokenKind::Ident(symbol) => Ok(symbol),
@@ -90,6 +91,19 @@ impl<'a> Parser<'a> {
             .map(|t| t.kind.clone())
             .unwrap_or(TokenKind::EOF);
         (kind_1, kind_2)
+    }
+
+    pub fn expect_kw(&mut self, kw: Kw) -> Result<()> {
+        match self.bump() {
+            None => Err(ParseError::UnexpectedEndOfInput),
+            Some(token) => match token.kind {
+                TokenKind::Ident(symbol) if symbol.is_kw(kw.clone()) => Ok(()),
+                _ => Err(ParseError::ExpectedKw {
+                    expected: kw.clone(),
+                    actual: token,
+                }),
+            },
+        }
     }
 
     pub fn expect_next(&mut self, expected_token: TokenKind) -> Result<()> {

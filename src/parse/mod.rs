@@ -227,6 +227,43 @@ impl<'a> Parser<'a> {
                 ast::StatementKind::Return(expr)
             }
 
+            // Starts with if -> either if statement or if expr
+            TokenKind::Ident(i) if i.is_kw(Kw::If) => {
+                // Start a span in case we need it
+                self.push_start();
+
+                // Eat the if
+                self.bump();
+
+                // Parse an expression to be condition
+                let condition = Box::new(self.parse_expr()?);
+
+                // Parse a block
+                let block = Box::new(self.parse_block(true)?);
+
+                // Is there an else? If so this is an expression
+                match self.peek_kind() {
+                    TokenKind::Ident(symb) if symb.is_kw(Kw::Else) => {
+                        // Eat the else
+                        self.bump();
+
+                        // Parse the else block
+                        let else_block = Box::new(self.parse_block(true)?);
+
+                        // Create if expression
+                        ast::StatementKind::Expr(Box::new(ast::Expr {
+                            id: self.current_expr_id.next(),
+                            span: self.pop_span(),
+                            kind: ast::ExprKind::If(condition, block, else_block),
+                        }))
+                    }
+                    _ => {
+                        self.pop_span(); // We dont need the span
+                        ast::StatementKind::If(condition, block)
+                    }
+                }
+            }
+
             // Expression
             _ => {
                 let expr = Box::new(self.parse_expr()?);
@@ -235,7 +272,10 @@ impl<'a> Parser<'a> {
         };
 
         // Eat the semi
-        let need_semi = !matches!(kind, ast::StatementKind::Expr(_));
+        let need_semi = !matches!(
+            kind,
+            ast::StatementKind::Expr(_) | ast::StatementKind::If(_, _)
+        );
         let has_semi = if need_semi {
             self.expect_next(TokenKind::Semi)?;
             true
@@ -518,6 +558,23 @@ impl<'a> Parser<'a> {
             // Boolean false literal
             TokenKind::Ident(symbol_id) if symbol_id.is_kw(Kw::False) => {
                 ast::ExprKind::Literal(LiteralValue::Bool(false))
+            }
+
+            // Parse an if expression
+            TokenKind::Ident(symbol) if symbol.is_kw(Kw::If) => {
+                // parse an expression to be the condition
+                let condition = Box::new(self.parse_expr()?);
+
+                // Parse a block for when cond is true
+                let block_true = Box::new(self.parse_block(true)?);
+
+                // Expect an `else` keyword
+                self.expect_kw(Kw::Else)?;
+
+                let block_false = Box::new(self.parse_block(true)?);
+
+                // Create node
+                ast::ExprKind::If(condition, block_true, block_false)
             }
 
             // Parse expressions starting with an ident...

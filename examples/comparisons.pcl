@@ -1,9 +1,7 @@
-fn foo(x: int) -> bool {
-  let a = x == 1;
-  let b = x > 1;
-  let c = x < 1;
-  let d = x >= 1;
-  let e = x <= 1;
-  let f = true == true;
-  false
+fn foo(x: int) {
+  let t = x < 3;
+  let f = x > 3;
+  let t = x == 1;
+  let f = x >= 1;
+  let t = x >= 3;
 }

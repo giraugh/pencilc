@@ -230,7 +230,7 @@ impl<'a> TokenLexer<'a> {
 
                 BasicTokenKind::Gt => self.maybe_ligature(match next_basic {
                     BasicTokenKind::Eq => Ok(GtEq),
-                    _ => Err(Lt),
+                    _ => Err(Gt),
                 }),
 
                 BasicTokenKind::Bang => self.maybe_ligature(match next_basic {

@@ -1,6 +1,7 @@
 fn main() -> int {
   {
     let y = 1;
+    y + 1;
   }
   10
 }

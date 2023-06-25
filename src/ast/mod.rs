@@ -47,6 +47,9 @@ pub struct Binding {
 pub enum StatementKind {
     Expr(Box<Expr>),
     Return(Option<Box<Expr>>),
+
+    /// If statement (has no else block)
+    If(Box<Expr>, Box<Block>),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -68,6 +71,9 @@ pub enum ExprKind {
     Assign(Symbol, Box<Expr>),
     Let(Box<Binding>, Box<Expr>),
     Block(Box<Block>),
+
+    /// If expression (cond, block-if-true, block-if-false)
+    If(Box<Expr>, Box<Block>, Box<Block>),
 }
 
 #[derive(Debug, PartialEq, Clone)]

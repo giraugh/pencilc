@@ -254,11 +254,16 @@ impl Tyc {
                     has_return = true;
                 }
             }
+            Some(_) => {}
             None => {}
         }
 
         // Update the type of the block
-        let ty = self.current_outer_type.clone().unwrap_or(Ty::Never);
+        let ty = self
+            .current_outer_type
+            .clone()
+            .expect("Will have been set earlier in this function");
+        let ty = if has_return { ty } else { Ty::Never };
         let outer_block = tir::Block { ty, ..block };
 
         // Discard the outer type
@@ -297,6 +302,20 @@ impl Tyc {
                     }
 
                     tir::StatementKind::Return(expr)
+                }
+
+                // Typecheck an if statement
+                ast::StatementKind::If(cond, block) => {
+                    // Typecheck the expression
+                    let cond = self.typecheck_expr(*cond)?;
+
+                    // Typecheck the block
+                    let block = self.typecheck_inner_block(*block)?;
+
+                    // The condition should be a boolean
+                    self.equate_tys(&cond.ty, &Ty::Primitive(PrimitiveTy::Bool));
+
+                    tir::StatementKind::If(Box::new(cond), Box::new(block))
                 }
 
                 // Typecheck an expression
@@ -351,6 +370,24 @@ impl Tyc {
                 let ty = expr1.ty.clone();
 
                 (tir::ExprKind::Binary(op, (expr1, expr2)), ty)
+            }
+
+            ast::ExprKind::If(cond, block_true, block_false) => {
+                // Typecheck the condition
+                let cond = Box::new(self.typecheck_expr(*cond)?);
+
+                // Condition should be a boolean
+                self.equate_tys(&cond.ty, &Ty::Primitive(PrimitiveTy::Bool))?;
+
+                // Typecheck each block
+                let block_true = Box::new(self.typecheck_inner_block(*block_true)?);
+                let block_false = Box::new(self.typecheck_inner_block(*block_false)?);
+
+                // They should have matching types
+                self.equate_tys(&block_true.ty, &block_false.ty)?;
+
+                let ty = block_true.ty.clone();
+                (tir::ExprKind::If(cond, block_true, block_false), ty)
             }
 
             ast::ExprKind::Comparison(op, (expr1, expr2)) => {

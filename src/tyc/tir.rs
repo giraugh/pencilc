@@ -33,6 +33,9 @@ pub struct Statement {
 pub enum StatementKind {
     Expr(Box<Expr>),
     Return(Option<Box<Expr>>),
+
+    /// If statement (has no else block)
+    If(Box<Expr>, Box<Block>),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -55,6 +58,9 @@ pub enum ExprKind {
     Assign(NameId, Box<Expr>),
     Let(NameId, Box<Expr>),
     Block(Box<Block>),
+
+    /// If expression (has else block)
+    If(Box<Expr>, Box<Block>, Box<Block>),
 }
 
 #[derive(Debug, PartialEq, Clone)]

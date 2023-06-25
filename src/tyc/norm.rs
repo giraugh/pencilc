@@ -29,6 +29,10 @@ impl Tyc {
                 tir::StatementKind::Expr(expr) => {
                     tir::StatementKind::Expr(Box::new(self.norm_expr(*expr, fin)?))
                 }
+                tir::StatementKind::If(cond, block) => tir::StatementKind::If(
+                    Box::new(self.norm_expr(*cond, fin)?),
+                    Box::new(self.norm_block(*block, fin)?),
+                ),
                 tir::StatementKind::Return(Some(expr)) => {
                     tir::StatementKind::Return(Some(Box::new(self.norm_expr(*expr, fin)?)))
                 }
@@ -101,6 +105,18 @@ impl Tyc {
                     }
 
                     tir::ExprKind::Logical(opt, (expr1, expr2))
+                }
+
+                tir::ExprKind::If(cond, block_true, block_false) => {
+                    // Norm condition
+                    let cond = Box::new(self.norm_expr(*cond, fin)?);
+
+                    // Norm the blocks
+                    let block_true = Box::new(self.norm_block(*block_true, fin)?);
+                    let block_false = Box::new(self.norm_block(*block_false, fin)?);
+
+                    // Return node
+                    tir::ExprKind::If(cond, block_true, block_false)
                 }
 
                 // Expr kinds that we don't have to normalize

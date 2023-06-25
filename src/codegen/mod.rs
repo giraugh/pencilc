@@ -16,7 +16,7 @@ use inkwell::{
     context::Context,
     module::Module,
     types::{BasicType, BasicTypeEnum},
-    values::{BasicValueEnum, FunctionValue, PointerValue},
+    values::{BasicValue, BasicValueEnum, FunctionValue, PointerValue},
     FloatPredicate, IntPredicate,
 };
 
@@ -137,6 +137,41 @@ impl<'ctx> Codegen<'ctx> {
     fn codegen_statement(&self, statement_node: tir::Statement) -> Result<Option<BasicValueEnum>> {
         let value = match statement_node.kind {
             tir::StatementKind::Expr(expr) => Some(self.codegen_expr(*expr)?),
+
+            tir::StatementKind::If(cond, block) => {
+                // Codegen the condition expression
+                let cond = self.codegen_expr(*cond)?;
+
+                // Create basic block for when the condition is true
+                let func = self
+                    .builder
+                    .get_insert_block()
+                    .unwrap()
+                    .get_parent()
+                    .unwrap();
+                let bb_true = self
+                    .context
+                    .append_basic_block(func, &format!("{}_true", statement_node.id.index()));
+
+                // Create basic block for continuing
+                let bb_merge = self
+                    .context
+                    .append_basic_block(func, &format!("{}_merge", statement_node.id.index()));
+
+                // Create branch statement
+                self.builder
+                    .build_conditional_branch(cond.into_int_value(), bb_true, bb_merge);
+
+                // Codegen the true block
+                self.builder.position_at_end(bb_true);
+                self.codegen_block(*block)?;
+                self.builder.build_unconditional_branch(bb_merge);
+
+                // Continue on from the merge bb
+                self.builder.position_at_end(bb_merge);
+                None
+            }
+
             tir::StatementKind::Return(expr) => {
                 match expr {
                     None => {
@@ -166,7 +201,14 @@ impl<'ctx> Codegen<'ctx> {
 
         // Create a temporary builder and point it at the entry block
         let temp_builder = self.context.create_builder();
-        temp_builder.position_at_end(entry_block);
+        match entry_block.get_first_instruction() {
+            Some(instr) => {
+                temp_builder.position_before(&instr);
+            }
+            None => {
+                temp_builder.position_at_end(entry_block);
+            }
+        }
 
         // Create alloca
         let alloca =
@@ -177,6 +219,61 @@ impl<'ctx> Codegen<'ctx> {
 
     fn codegen_expr(&self, expr_node: tir::Expr) -> Result<BasicValueEnum> {
         let value: BasicValueEnum = match expr_node.kind {
+            tir::ExprKind::If(cond, block_true, block_false) => {
+                // Codegen the condition expression
+                let cond = self.codegen_expr(*cond)?;
+
+                // Get current function
+                let func = self
+                    .builder
+                    .get_insert_block()
+                    .unwrap()
+                    .get_parent()
+                    .unwrap();
+
+                // Create basic block for when true
+                let bb_true = self
+                    .context
+                    .append_basic_block(func, &format!("{}_true", expr_node.id.index()));
+
+                // Create basic block for when false
+                let bb_false = self
+                    .context
+                    .append_basic_block(func, &format!("{}_false", expr_node.id.index()));
+
+                // Create basic block for continuing
+                let bb_merge = self
+                    .context
+                    .append_basic_block(func, &format!("{}_merge", expr_node.id.index()));
+
+                // Create branch statement
+                self.builder
+                    .build_conditional_branch(cond.into_int_value(), bb_true, bb_false);
+
+                // Codegen the true block
+                self.builder.position_at_end(bb_true);
+                let true_value: &dyn BasicValue = &self.codegen_block(*block_true)?;
+                self.builder.build_unconditional_branch(bb_merge);
+
+                // Codegen the false block
+                self.builder.position_at_end(bb_false);
+                let false_value: &dyn BasicValue = &self.codegen_block(*block_false)?;
+                self.builder.build_unconditional_branch(bb_merge);
+
+                // Continue on from the merge bb
+                self.builder.position_at_end(bb_merge);
+                if expr_node.ty != Ty::Never {
+                    let ty = self.resolve_ty_node(expr_node.ty);
+                    let phi = self
+                        .builder
+                        .build_phi(ty, &format!("{}_phi", expr_node.id.index()));
+                    phi.add_incoming(&[(true_value, bb_true), (false_value, bb_false)]);
+                    phi.as_basic_value()
+                } else {
+                    self.codegen_never()
+                }
+            }
+
             tir::ExprKind::Let(name_id, expr) => {
                 // Create value to bind
                 let value = self.codegen_expr(*expr.clone())?;
@@ -502,24 +599,31 @@ impl<'ctx> Codegen<'ctx> {
                 ptr_value.into()
             }
 
-            tir::ExprKind::Block(block) => {
-                // Codegen each statement
-                let mut value = None;
-                for (is_last, statement) in block.statements.into_iter().mark_last() {
-                    if is_last && expr_node.ty != Ty::Never {
-                        value = self.codegen_statement(statement)?;
-                    } else {
-                        self.codegen_statement(statement)?;
-                    }
-                }
-                value
-                    // #HACK #GROSS #TODO
-                    .unwrap_or_else(|| self.context.i64_type().const_zero().into())
-                    .into()
-            }
+            tir::ExprKind::Block(block) => self.codegen_block(*block)?,
         };
 
         Ok(value)
+    }
+
+    fn codegen_block(&self, block: tir::Block) -> Result<BasicValueEnum> {
+        // Codegen each statement
+        let mut value = None;
+        for (is_last, statement) in block.statements.into_iter().mark_last() {
+            if is_last && block.ty != Ty::Never {
+                value = self.codegen_statement(statement)?;
+            } else {
+                self.codegen_statement(statement)?;
+            }
+        }
+
+        Ok(value
+            // #HACK #GROSS #TODO
+            .unwrap_or_else(|| self.codegen_never())
+            .into())
+    }
+
+    fn codegen_never(&self) -> BasicValueEnum {
+        self.context.i64_type().const_zero().into()
     }
 
     fn resolve_ty_node(&self, ty_node: ty::Ty) -> BasicTypeEnum<'ctx> {

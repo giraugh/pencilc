@@ -33,6 +33,21 @@ pub enum Kw {
 
     #[strum(serialize = "false")]
     False,
+
+    #[strum(serialize = "if")]
+    If,
+
+    #[strum(serialize = "else")]
+    Else,
+
+    #[strum(serialize = "for")]
+    For,
+
+    #[strum(serialize = "loop")]
+    Loop,
+
+    #[strum(serialize = "while")]
+    While,
 }
 
 impl From<Kw> for SymbolId {

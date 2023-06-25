@@ -1,13 +1,7 @@
-fn sample(x: int) -> int {
-  // Define variables
-  let y = 2 * 10;
-
-  // Compute sum
-  let sum = 10 + other(x, y + 2);
-  return sum;
+fn fib(n: int) -> int {
+    if n <= 1 {
+        n
+    } else {
+        fib(n - 1) + fib(n - 2)
+    }
 }
-
-fn other(a: int, b: int) -> int {
-  a + b
-}
-

@@ -1,10 +1,11 @@
 #include <stdio.h>
 
-int sample(int x);
+int fib(int x);
 
 int main() {
-  int result = sample(10);
-  printf("%d\n", result);
-
+  for (int i = 0; i < 10; i++) {
+    int result = fib(i);
+    printf("%d\n", result);
+  }
   return 0;
 }
