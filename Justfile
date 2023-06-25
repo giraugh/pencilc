@@ -7,20 +7,14 @@ build:
 run FILE:
   cargo run -- {{FILE}}
 
-sample:
-  cargo run -- ./examples/sample.pcl
+run-ir FILE:
+  cargo run -- -e llvm-ir {{FILE}}
 
 clean:
   rm -f *.ll
   rm -f *.bc
   rm -f *.o
   rm -f fixture
-
-sample-ir:
-  just clean
-  cargo run -- --emit llvm-bc -o sample.bc ./examples/sample.pcl
-  llvm-dis sample.bc
-  rm sample.bc
 
 fixture:
   just clean

@@ -79,7 +79,19 @@ impl Tyc {
                     tir::ExprKind::Let(name, Box::new(self.norm_expr(*expr, fin)?))
                 }
 
-                kind => kind,
+                tir::ExprKind::Comparison(opt, (expr1, expr2)) => {
+                    let expr1 = Box::new(self.norm_expr(*expr1, fin)?);
+                    let expr2 = Box::new(self.norm_expr(*expr2, fin)?);
+                    // TODO: check whether comparisons are valid.
+                    // We already know the types are the same. are there things that
+                    // cant be compared?
+
+                    tir::ExprKind::Comparison(opt, (expr1, expr2))
+                }
+
+                // Expr kinds that we don't have to normalize
+                k @ tir::ExprKind::Name(_) => k,
+                k @ tir::ExprKind::Literal(_) => k,
             },
             ty: self.norm_ty(expr.ty.clone(), fin)?,
             ..expr

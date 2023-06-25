@@ -25,6 +25,9 @@ pub enum Kw {
     #[strum(serialize = "str")]
     Str,
 
+    #[strum(serialize = "bool")]
+    Bool,
+
     #[strum(serialize = "true")]
     True,
 

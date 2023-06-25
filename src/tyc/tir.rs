@@ -46,6 +46,7 @@ pub struct Expr {
 #[derive(Debug, PartialEq, Clone)]
 pub enum ExprKind {
     Binary(ast::BinaryOpt, (Box<Expr>, Box<Expr>)),
+    Comparison(ast::ComparisonOpt, (Box<Expr>, Box<Expr>)),
     Unary(ast::UnaryOpt, Box<Expr>),
     FnCall(Symbol, Vec<Expr>),
     Name(NameId),

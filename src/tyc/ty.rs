@@ -98,6 +98,7 @@ impl From<Symbol> for Option<PrimitiveTy> {
             i if i.is_kw(Kw::UInt) => Some(PrimitiveTy::UInt),
             i if i.is_kw(Kw::Float) => Some(PrimitiveTy::Float),
             i if i.is_kw(Kw::Str) => Some(PrimitiveTy::Str),
+            i if i.is_kw(Kw::Bool) => Some(PrimitiveTy::Bool),
 
             _ => None,
         }

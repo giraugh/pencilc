@@ -354,6 +354,20 @@ impl Tyc {
                 (tir::ExprKind::Binary(op, (expr1, expr2)), ty)
             }
 
+            ast::ExprKind::Comparison(op, (expr1, expr2)) => {
+                // Typecheck the expression on their own
+                let expr1 = Box::new(self.typecheck_expr(*expr1)?);
+                let expr2 = Box::new(self.typecheck_expr(*expr2)?);
+
+                // They should be the same type
+                self.equate_tys(&expr1.ty, &expr2.ty)?;
+
+                // The result type will be a boolean
+                let ty = Ty::Primitive(PrimitiveTy::Bool);
+
+                (tir::ExprKind::Comparison(op, (expr1, expr2)), ty)
+            }
+
             ast::ExprKind::Unary(op, expr) => {
                 // Typecheck the expression
                 let expr = Box::new(self.typecheck_expr(*expr)?);
@@ -417,6 +431,7 @@ impl Tyc {
                 let ty = match literal {
                     LiteralValue::Str(_) => Ty::Primitive(PrimitiveTy::Str),
                     LiteralValue::Float(_) => Ty::Primitive(PrimitiveTy::Float),
+                    LiteralValue::Bool(_) => Ty::Primitive(PrimitiveTy::Bool),
                     LiteralValue::Int(_) => self
                         .ty_env()
                         .unifier

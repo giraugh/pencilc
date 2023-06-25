@@ -1,7 +1,7 @@
 use std::{collections::HashMap, env, path::Path, rc::Rc, sync::RwLock};
 
 use crate::{
-    ast::{BinaryOpt, UnaryOpt},
+    ast::{BinaryOpt, ComparisonOpt, UnaryOpt},
     error::CodegenError,
     id::{Idx, NameId},
     lex::LiteralValue,
@@ -16,6 +16,7 @@ use inkwell::{
     module::Module,
     types::{BasicType, BasicTypeEnum},
     values::{BasicValueEnum, FunctionValue, PointerValue},
+    FloatPredicate, IntPredicate,
 };
 
 pub struct Codegen<'ctx> {
@@ -173,7 +174,7 @@ impl<'ctx> Codegen<'ctx> {
     }
 
     fn codegen_expr(&self, expr_node: tir::Expr) -> Result<BasicValueEnum> {
-        let value = match expr_node.kind {
+        let value: BasicValueEnum = match expr_node.kind {
             tir::ExprKind::Let(name_id, expr) => {
                 // Create value to bind
                 let value = self.codegen_expr(*expr.clone())?;
@@ -199,6 +200,11 @@ impl<'ctx> Codegen<'ctx> {
             tir::ExprKind::Literal(value) => match value {
                 LiteralValue::Str(_) => todo!("Cant handle strings yet!"),
                 LiteralValue::Float(value) => self.context.f64_type().const_float(value).into(),
+                LiteralValue::Bool(value) => self
+                    .context
+                    .bool_type()
+                    .const_int(value as u64, false)
+                    .into(),
                 LiteralValue::Int(value) => match expr_node.ty {
                     Ty::Primitive(PrimitiveTy::SInt) => {
                         // Reinterpret as signed
@@ -209,6 +215,7 @@ impl<'ctx> Codegen<'ctx> {
                     Ty::Primitive(PrimitiveTy::UInt) => {
                         self.context.i64_type().const_int(value, false)
                     }
+                    Ty::Infer(_) => panic!("Shouldnt be running codegen on infer"),
                     _ => unreachable!(),
                 }
                 .into(),
@@ -348,6 +355,70 @@ impl<'ctx> Codegen<'ctx> {
                     },
 
                     BinaryOpt::Exponentiate => todo!("dont know how to exponentiate"),
+                };
+
+                value
+            }
+
+            tir::ExprKind::Comparison(op, (lhs, rhs)) => {
+                // Codegen operands
+                let lhs = self.codegen_expr(*lhs)?;
+                let rhs = self.codegen_expr(*rhs)?;
+
+                // Codegen operation
+                let value = match expr_node.ty {
+                    Ty::Primitive(PrimitiveTy::UInt | PrimitiveTy::Bool) => self
+                        .builder
+                        .build_int_compare(
+                            match op {
+                                ComparisonOpt::Equal => IntPredicate::EQ,
+                                ComparisonOpt::NotEqual => IntPredicate::NE,
+                                ComparisonOpt::GreaterThan => IntPredicate::UGT,
+                                ComparisonOpt::LessThan => IntPredicate::ULT,
+                                ComparisonOpt::GreaterThanOrEqual => IntPredicate::UGE,
+                                ComparisonOpt::LessThanOrEqual => IntPredicate::ULE,
+                            },
+                            lhs.into_int_value(),
+                            rhs.into_int_value(),
+                            &format!("{}_uicmp_{}", expr_node.id.index(), op),
+                        )
+                        .into(),
+                    Ty::Primitive(PrimitiveTy::SInt) => self
+                        .builder
+                        .build_int_compare(
+                            match op {
+                                ComparisonOpt::Equal => IntPredicate::EQ,
+                                ComparisonOpt::NotEqual => IntPredicate::NE,
+                                ComparisonOpt::GreaterThan => IntPredicate::SGT,
+                                ComparisonOpt::LessThan => IntPredicate::SLT,
+                                ComparisonOpt::GreaterThanOrEqual => IntPredicate::SGE,
+                                ComparisonOpt::LessThanOrEqual => IntPredicate::SLE,
+                            },
+                            lhs.into_int_value(),
+                            rhs.into_int_value(),
+                            &format!("{}_sicmp_{}", expr_node.id.index(), op),
+                        )
+                        .into(),
+                    Ty::Primitive(PrimitiveTy::Float) => self
+                        .builder
+                        .build_float_compare(
+                            match op {
+                                ComparisonOpt::Equal => FloatPredicate::OEQ,
+                                ComparisonOpt::NotEqual => FloatPredicate::ONE,
+                                ComparisonOpt::GreaterThan => FloatPredicate::OGT,
+                                ComparisonOpt::LessThan => FloatPredicate::OLT,
+                                ComparisonOpt::GreaterThanOrEqual => FloatPredicate::OGE,
+                                ComparisonOpt::LessThanOrEqual => FloatPredicate::OLE,
+                            },
+                            lhs.into_float_value(),
+                            rhs.into_float_value(),
+                            &format!("{}_fcmp_{}", expr_node.id.index(), op),
+                        )
+                        .into(),
+
+                    Ty::Primitive(PrimitiveTy::Str) => todo!("Dont know how to compare strings"),
+                    Ty::Infer(_) => unreachable!(),
+                    Ty::Never => unreachable!(),
                 };
 
                 value

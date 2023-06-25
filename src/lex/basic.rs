@@ -5,6 +5,26 @@ use super::cursor::Cursor;
 use crate::lex::basic::BasicTokenKind::*;
 use crate::lex::basic::LiteralKind::*;
 
+/// Infinite iterator that returns basic tokens from a cursor
+pub struct CursorIterator<'a>(Cursor<'a>);
+
+impl<'a> Iterator for CursorIterator<'a> {
+    type Item = BasicToken;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(self.0.next_token())
+    }
+}
+
+impl<'a> IntoIterator for Cursor<'a> {
+    type Item = BasicToken;
+    type IntoIter = CursorIterator<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        CursorIterator(self)
+    }
+}
+
 impl<'a> Cursor<'a> {
     /// Get the next token
     pub fn next_token(&mut self) -> BasicToken {

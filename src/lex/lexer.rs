@@ -4,11 +4,13 @@ use crate::session::symbol::Symbol;
 use crate::session::SessionRef;
 use crate::span::{CharPos, Span};
 use std::fmt::Debug;
+use std::iter::Peekable;
 use strum::IntoEnumIterator;
 use strum_macros::Display;
 
 use self::Delimeter::*;
 use self::TokenKind::*;
+use super::basic::CursorIterator;
 use super::kw::Kw;
 use super::{basic::BasicTokenKind, basic::LiteralKind, cursor::Cursor};
 
@@ -30,6 +32,7 @@ pub enum LiteralValue {
     Str(Interned<String>),
     Int(u64),
     Float(f64),
+    Bool(bool),
 }
 
 #[allow(unused)]
@@ -49,6 +52,16 @@ pub enum TokenKind {
 
     /// Closing a delimeter
     CloseDelimeter(Delimeter),
+
+    // Ligatures
+    EqEq,
+    GtEq,
+    LtEq,
+    FatArrow,
+    ThinArrow,
+    AmpersandAmpersand,
+    PipePipe,
+    BangEq,
 
     // Single characters
     Semi,
@@ -84,7 +97,7 @@ pub enum Delimeter {
 
 pub struct TokenLexer<'a> {
     position: CharPos,
-    cursor: Cursor<'a>,
+    basic_tokens: Peekable<CursorIterator<'a>>,
     session: SessionRef<'a>,
 }
 
@@ -106,7 +119,7 @@ impl<'a> TokenLexer<'a> {
         Self {
             session,
             position: CharPos(0),
-            cursor: Cursor::new(input),
+            basic_tokens: Cursor::new(input).into_iter().peekable(),
         }
     }
 
@@ -127,15 +140,35 @@ impl<'a> TokenLexer<'a> {
         Ok(tokens)
     }
 
+    pub fn maybe_ligature(&mut self, ligature: Result<TokenKind, TokenKind>) -> TokenKind {
+        match ligature {
+            Ok(ligature) => {
+                let basic_token = self.basic_tokens.next().expect("Iter is infinite");
+                self.position = self.position + CharPos(basic_token.len);
+                ligature
+            }
+            Err(token) => token,
+        }
+    }
+
     pub fn next_token(&mut self) -> Result<Token, LexError> {
         loop {
-            let basic_token = self.cursor.next_token();
+            let basic_token = self.basic_tokens.next().expect("Iter is infinite");
             let start = self.position;
             self.position = self.position + CharPos(basic_token.len);
-            let span = Span::new(start, self.position.clone());
 
-            let mut session = self.session.try_write().unwrap();
-            let value_str = &session.input[span.start.0..span.end.0];
+            // Get kind of next basic token
+            let next_basic = self
+                .basic_tokens
+                .peek()
+                .expect("Iter is infinite")
+                .kind
+                .clone();
+
+            let value_str = {
+                let session = self.session.try_write().unwrap();
+                session.input[start.0..start.0 + basic_token.len].to_owned()
+            };
 
             let token_kind = match basic_token.kind {
                 // Skip comments and whitespace
@@ -151,7 +184,11 @@ impl<'a> TokenLexer<'a> {
                     LiteralKind::Float => Literal(LiteralValue::Float(value_str.parse()?)),
                     LiteralKind::Str { terminated } => {
                         if terminated {
-                            let string_id = session.intern_string(value_str.to_owned());
+                            let string_id = self
+                                .session
+                                .try_write()
+                                .unwrap()
+                                .intern_string(value_str.to_owned());
                             Literal(LiteralValue::Str(string_id))
                         } else {
                             return Err(LexError::MalformedStringError);
@@ -159,7 +196,12 @@ impl<'a> TokenLexer<'a> {
                     }
                 },
 
-                BasicTokenKind::Ident => Ident(session.intern_symbol(value_str.to_owned())),
+                BasicTokenKind::Ident => Ident(
+                    self.session
+                        .try_write()
+                        .unwrap()
+                        .intern_symbol(value_str.to_owned()),
+                ),
 
                 // We compact delimeters by the delimeter type
                 BasicTokenKind::OpenParen => OpenDelimeter(Parenthesis),
@@ -169,17 +211,39 @@ impl<'a> TokenLexer<'a> {
                 BasicTokenKind::OpenBracket => OpenDelimeter(Bracket),
                 BasicTokenKind::CloseBracket => CloseDelimeter(Bracket),
 
+                // Ligatures
+                BasicTokenKind::Minus => self.maybe_ligature(match next_basic {
+                    BasicTokenKind::Gt => Ok(ThinArrow),
+                    _ => Err(Minus),
+                }),
+
+                BasicTokenKind::Eq => self.maybe_ligature(match next_basic {
+                    BasicTokenKind::Eq => Ok(EqEq),
+                    BasicTokenKind::Gt => Ok(FatArrow),
+                    _ => Err(Eq),
+                }),
+
+                BasicTokenKind::Lt => self.maybe_ligature(match next_basic {
+                    BasicTokenKind::Eq => Ok(LtEq),
+                    _ => Err(Lt),
+                }),
+
+                BasicTokenKind::Gt => self.maybe_ligature(match next_basic {
+                    BasicTokenKind::Eq => Ok(GtEq),
+                    _ => Err(Lt),
+                }),
+
+                BasicTokenKind::Bang => self.maybe_ligature(match next_basic {
+                    BasicTokenKind::Eq => Ok(BangEq),
+                    _ => Err(Bang),
+                }),
+
                 // These are the same
                 BasicTokenKind::EOF => EOF,
                 BasicTokenKind::Semi => Semi,
                 BasicTokenKind::Comma => Comma,
-                BasicTokenKind::Bang => Bang,
                 BasicTokenKind::Dot => Dot,
                 BasicTokenKind::Colon => Colon,
-                BasicTokenKind::Eq => Eq,
-                BasicTokenKind::Lt => Lt,
-                BasicTokenKind::Gt => Gt,
-                BasicTokenKind::Minus => Minus,
                 BasicTokenKind::Plus => Plus,
                 BasicTokenKind::Ampersand => Ampersand,
                 BasicTokenKind::Pipe => Pipe,
@@ -189,6 +253,7 @@ impl<'a> TokenLexer<'a> {
                 BasicTokenKind::Percent => Percent,
             };
 
+            let span = Span::new(start, self.position.clone());
             return Ok(Token {
                 kind: token_kind,
                 span,

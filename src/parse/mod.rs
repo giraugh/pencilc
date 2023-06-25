@@ -1,10 +1,10 @@
 mod parser;
 
 use crate::{
-    ast,
+    ast::{self, ComparisonOpt},
     error::ParseError,
     id::Idx,
-    lex::{Delimeter, Kw, TokenKind},
+    lex::{Delimeter, Kw, LiteralValue, TokenKind},
     span::Span,
 };
 pub use parser::Parser;
@@ -103,10 +103,9 @@ impl<'a> Parser<'a> {
 
         // Return type?
         let ty = match self.peek_kind() {
-            TokenKind::Minus => {
+            TokenKind::ThinArrow => {
                 // Eat the ->
                 self.bump();
-                self.expect_next(TokenKind::Gt)?;
 
                 // parse a type expression
                 let ty = Box::new(self.parse_type_expr()?);
@@ -255,7 +254,8 @@ impl<'a> Parser<'a> {
 
     /**
      * Grammar for expressions
-     * E -> Assign | Let | Return | N
+     * E -> Assign | Let | Return | C
+     * C -> N [== N | != N | > N | >= N | <= N]
      * N -> T {(+ | -) T}
      * T -> F {(* | /) F}
      * F -> P [(^) F]
@@ -303,7 +303,7 @@ impl<'a> Parser<'a> {
             // Parse a numeric
             _ => {
                 self.pop_span();
-                return self.parse_numeric_expression();
+                return self.parse_comp_expression();
             }
         };
 
@@ -315,6 +315,54 @@ impl<'a> Parser<'a> {
         })
     }
 
+    fn parse_comp_expression(&mut self) -> Result<ast::Expr> {
+        // First pass a numeric
+        let mut expr = self.parse_numeric_expression()?;
+
+        // Now parse 0 or 1 logical operators
+        match self.peek_kind() {
+            op @ (TokenKind::EqEq
+            | TokenKind::BangEq
+            | TokenKind::Gt
+            | TokenKind::Lt
+            | TokenKind::GtEq
+            | TokenKind::LtEq) => {
+                // Eat the operator
+                self.bump();
+
+                // Determine operation
+                let operation = match op {
+                    TokenKind::EqEq => ComparisonOpt::Equal,
+                    TokenKind::BangEq => ComparisonOpt::NotEqual,
+                    TokenKind::Gt => ComparisonOpt::GreaterThan,
+                    TokenKind::Lt => ComparisonOpt::LessThan,
+                    TokenKind::GtEq => ComparisonOpt::GreaterThanOrEqual,
+                    TokenKind::LtEq => ComparisonOpt::LessThanOrEqual,
+                    _ => unreachable!(),
+                };
+
+                // Parse a term to be the rhs
+                let rhs = self.parse_numeric_expression()?;
+
+                // Construct comparison opt as <expr> <opt> <rhs>
+                expr = ast::Expr {
+                    id: self.current_expr_id.next(),
+                    span: Span::new(expr.span.start, rhs.span.end),
+                    kind: ast::ExprKind::Comparison(
+                        operation,
+                        (Box::new(expr), Box::new(rhs.clone())),
+                    ),
+                }
+            }
+
+            _ => {}
+        }
+
+        Ok(expr)
+    }
+
+    /// Slight misnomer, may actually be any type of literal
+    /// but the point is that this is where numeric binary/unary etc operations are parsed
     fn parse_numeric_expression(&mut self) -> Result<ast::Expr> {
         // First pass a term
         let mut expr = self.parse_term_expression()?;
@@ -424,6 +472,16 @@ impl<'a> Parser<'a> {
         let kind = match token.kind {
             // Parse a literal on its own
             TokenKind::Literal(value) => ast::ExprKind::Literal(value),
+
+            // Boolean true literal
+            TokenKind::Ident(symbol_id) if symbol_id.is_kw(Kw::True) => {
+                ast::ExprKind::Literal(LiteralValue::Bool(true))
+            }
+
+            // Boolean false literal
+            TokenKind::Ident(symbol_id) if symbol_id.is_kw(Kw::False) => {
+                ast::ExprKind::Literal(LiteralValue::Bool(false))
+            }
 
             // Parse expressions starting with an ident...
             TokenKind::Ident(symbol_id) => match self.peek_kind() {
