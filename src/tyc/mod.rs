@@ -368,6 +368,21 @@ impl Tyc {
                 (tir::ExprKind::Comparison(op, (expr1, expr2)), ty)
             }
 
+            ast::ExprKind::Logical(op, (expr1, expr2)) => {
+                // Typecheck the expression on their own
+                let expr1 = Box::new(self.typecheck_expr(*expr1)?);
+                let expr2 = Box::new(self.typecheck_expr(*expr2)?);
+
+                // They should be booleans
+                self.equate_tys(&expr1.ty, &Ty::Primitive(PrimitiveTy::Bool))?;
+                self.equate_tys(&expr2.ty, &Ty::Primitive(PrimitiveTy::Bool))?;
+
+                // The result type will be a boolean
+                let ty = Ty::Primitive(PrimitiveTy::Bool);
+
+                (tir::ExprKind::Logical(op, (expr1, expr2)), ty)
+            }
+
             ast::ExprKind::Unary(op, expr) => {
                 // Typecheck the expression
                 let expr = Box::new(self.typecheck_expr(*expr)?);

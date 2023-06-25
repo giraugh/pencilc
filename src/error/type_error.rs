@@ -35,4 +35,7 @@ pub enum TypeError {
 
     #[error("Cannot apply unary operator {0} to {1} type")]
     InvalidUnaryOpt(UnaryOpt, Ty),
+
+    #[error("Cannot apply logical operator to {0} type")]
+    InvalidLogicalOpt(Ty),
 }

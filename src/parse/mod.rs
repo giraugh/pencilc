@@ -1,7 +1,7 @@
 mod parser;
 
 use crate::{
-    ast::{self, ComparisonOpt},
+    ast::{self, ComparisonOpt, LogicalOpt},
     error::ParseError,
     id::Idx,
     lex::{Delimeter, Kw, LiteralValue, TokenKind},
@@ -256,8 +256,8 @@ impl<'a> Parser<'a> {
      * Grammar for expressions
      * E -> Assign | Let | Return | C
      * C -> N [== N | != N | > N | >= N | <= N]
-     * N -> T {(+ | -) T}
-     * T -> F {(* | /) F}
+     * N -> T {(+ | - | "||") T}
+     * T -> F {(* | / | "and") F}
      * F -> P [(^) F]
      * P -> v | "(" E ")" | -T
      * v -> literal | func() | ident
@@ -394,6 +394,24 @@ impl<'a> Parser<'a> {
                         ),
                     }
                 }
+
+                TokenKind::PipePipe => {
+                    // Eat the operator
+                    self.bump();
+
+                    // Parse a term to be rhs
+                    let rhs = self.parse_term_expression()?;
+
+                    // Construct logical opt as <expr> <opt> <rhs>
+                    expr = ast::Expr {
+                        id: self.current_expr_id.next(),
+                        span: Span::new(expr.span.start, rhs.span.end),
+                        kind: ast::ExprKind::Logical(
+                            LogicalOpt::Or,
+                            (Box::new(expr), Box::new(rhs.clone())),
+                        ),
+                    }
+                }
                 _ => break,
             }
         }
@@ -432,6 +450,25 @@ impl<'a> Parser<'a> {
                         ),
                     }
                 }
+
+                TokenKind::AmpAmp => {
+                    // Eat the operator
+                    self.bump();
+
+                    // Parse a term to be rhs
+                    let rhs = self.parse_term_expression()?;
+
+                    // Construct logical opt as <expr> <opt> <rhs>
+                    expr = ast::Expr {
+                        id: self.current_expr_id.next(),
+                        span: Span::new(expr.span.start, rhs.span.end),
+                        kind: ast::ExprKind::Logical(
+                            LogicalOpt::And,
+                            (Box::new(expr), Box::new(rhs.clone())),
+                        ),
+                    }
+                }
+
                 _ => break,
             }
         }

@@ -1,7 +1,7 @@
 use std::{collections::HashMap, env, path::Path, rc::Rc, sync::RwLock};
 
 use crate::{
-    ast::{BinaryOpt, ComparisonOpt, UnaryOpt},
+    ast::{BinaryOpt, ComparisonOpt, LogicalOpt, UnaryOpt},
     error::CodegenError,
     id::{Idx, NameId},
     lex::LiteralValue,
@@ -419,6 +419,34 @@ impl<'ctx> Codegen<'ctx> {
                     Ty::Primitive(PrimitiveTy::Str) => todo!("Dont know how to compare strings"),
                     Ty::Infer(_) => unreachable!(),
                     Ty::Never => unreachable!(),
+                };
+
+                value
+            }
+
+            tir::ExprKind::Logical(op, (lhs, rhs)) => {
+                // Codegen operands
+                let lhs = self.codegen_expr(*lhs)?;
+                let rhs = self.codegen_expr(*rhs)?;
+
+                // Codegen operation
+                let value = match op {
+                    LogicalOpt::And => self
+                        .builder
+                        .build_and(
+                            lhs.into_int_value(),
+                            rhs.into_int_value(),
+                            &format!("{}_and", expr_node.id.index()),
+                        )
+                        .into(),
+                    LogicalOpt::Or => self
+                        .builder
+                        .build_or(
+                            lhs.into_int_value(),
+                            rhs.into_int_value(),
+                            &format!("{}_or", expr_node.id.index()),
+                        )
+                        .into(),
                 };
 
                 value

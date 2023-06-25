@@ -60,6 +60,7 @@ pub struct Expr {
 pub enum ExprKind {
     Binary(BinaryOpt, (Box<Expr>, Box<Expr>)),
     Comparison(ComparisonOpt, (Box<Expr>, Box<Expr>)),
+    Logical(LogicalOpt, (Box<Expr>, Box<Expr>)),
     Unary(UnaryOpt, Box<Expr>),
     FnCall(Symbol, Vec<Expr>),
     Name(Symbol),
@@ -95,6 +96,15 @@ pub enum TyExprKind {
 }
 
 #[allow(unused)]
+#[derive(Debug, Clone, PartialEq, Eq, Display)]
+pub enum LogicalOpt {
+    #[strum(serialize = "&&")]
+    And,
+
+    #[strum(serialize = "||")]
+    Or,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Display)]
 pub enum ComparisonOpt {
     #[strum(serialize = "==")]
@@ -133,17 +143,6 @@ pub enum BinaryOpt {
 
     #[strum(serialize = "^")]
     Exponentiate,
-    // #[strum(serialize = ">")]
-    // CompareGt,
-    //
-    // #[strum(serialize = "<")]
-    // CompareLt,
-    //
-    // #[strum(serialize = "<=")]
-    // CompareLte,
-    //
-    // #[strum(serialize = ">=")]
-    // CompareGte,
 }
 
 #[allow(unused)]

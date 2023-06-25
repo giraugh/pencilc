@@ -1,0 +1,8 @@
+fn foo() {
+  let x = true && true;
+  let y = false && true;
+  let z = false && false;
+  let a = true || true;
+  let b = true || false;
+  let c = false || false;
+}

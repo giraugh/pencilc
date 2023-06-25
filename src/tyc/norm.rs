@@ -1,6 +1,6 @@
 use crate::error::TypeError;
 
-use super::{tir, Result, Ty, Tyc};
+use super::{tir, ty::PrimitiveTy, Result, Ty, Tyc};
 
 impl Tyc {
     pub fn norm_block(&mut self, block: tir::Block, fin: bool) -> Result<tir::Block> {
@@ -87,6 +87,20 @@ impl Tyc {
                     // cant be compared?
 
                     tir::ExprKind::Comparison(opt, (expr1, expr2))
+                }
+
+                tir::ExprKind::Logical(opt, (expr1, expr2)) => {
+                    let expr1 = Box::new(self.norm_expr(*expr1, fin)?);
+                    let expr2 = Box::new(self.norm_expr(*expr2, fin)?);
+
+                    // Check that both exprs are booleans
+                    if expr1.ty != Ty::Primitive(PrimitiveTy::Bool)
+                        || expr2.ty != Ty::Primitive(PrimitiveTy::Bool)
+                    {
+                        return Err(TypeError::InvalidLogicalOpt(expr.ty.clone()));
+                    }
+
+                    tir::ExprKind::Logical(opt, (expr1, expr2))
                 }
 
                 // Expr kinds that we don't have to normalize

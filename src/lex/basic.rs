@@ -82,7 +82,7 @@ impl<'a> Cursor<'a> {
             '>' => Gt,
             '-' => Minus,
             '+' => Plus,
-            '&' => Ampersand,
+            '&' => Amp,
             '|' => Pipe,
             '*' => Asterisk,
             '^' => Caret,
@@ -225,7 +225,7 @@ pub enum BasicTokenKind {
     /// +
     Plus,
     /// &
-    Ampersand,
+    Amp,
     /// |
     Pipe,
     /// *

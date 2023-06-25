@@ -59,7 +59,7 @@ pub enum TokenKind {
     LtEq,
     FatArrow,
     ThinArrow,
-    AmpersandAmpersand,
+    AmpAmp,
     PipePipe,
     BangEq,
 
@@ -79,7 +79,7 @@ pub enum TokenKind {
     Gt,
     Minus,
     Plus,
-    Ampersand,
+    Amp,
     Pipe,
     Asterisk,
     Slash,
@@ -238,6 +238,16 @@ impl<'a> TokenLexer<'a> {
                     _ => Err(Bang),
                 }),
 
+                BasicTokenKind::Amp => self.maybe_ligature(match next_basic {
+                    BasicTokenKind::Amp => Ok(AmpAmp),
+                    _ => Err(Amp),
+                }),
+
+                BasicTokenKind::Pipe => self.maybe_ligature(match next_basic {
+                    BasicTokenKind::Pipe => Ok(PipePipe),
+                    _ => Err(Pipe),
+                }),
+
                 // These are the same
                 BasicTokenKind::EOF => EOF,
                 BasicTokenKind::Semi => Semi,
@@ -245,8 +255,6 @@ impl<'a> TokenLexer<'a> {
                 BasicTokenKind::Dot => Dot,
                 BasicTokenKind::Colon => Colon,
                 BasicTokenKind::Plus => Plus,
-                BasicTokenKind::Ampersand => Ampersand,
-                BasicTokenKind::Pipe => Pipe,
                 BasicTokenKind::Asterisk => Asterisk,
                 BasicTokenKind::Slash => Slash,
                 BasicTokenKind::Caret => Caret,
