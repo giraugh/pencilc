@@ -6,11 +6,10 @@ mod unify;
 
 pub use unify::InferValueKind;
 
-use crate::{ast, error::TypeError, lex::LiteralValue, session::symbol::Symbol};
-use std::{
-    collections::{HashMap, HashSet},
-    iter::Peekable,
+use crate::{
+    ast, error::TypeError, lex::LiteralValue, session::symbol::Symbol, util::MarkLastIterExt,
 };
+use std::collections::{HashMap, HashSet};
 use ty::*;
 
 use self::ty_env::TyEnv;
@@ -490,27 +489,5 @@ impl Tyc {
             span: expr.span,
             id: expr.id,
         })
-    }
-}
-
-trait MarkLastIterExt<T: Iterator>: Iterator<Item = T::Item> {
-    fn mark_last(self) -> MarkLast<T>;
-}
-
-struct MarkLast<T: Iterator>(Peekable<T>);
-
-impl<T: Iterator> MarkLastIterExt<T> for T {
-    fn mark_last(self) -> MarkLast<T> {
-        MarkLast(self.peekable())
-    }
-}
-
-impl<T: Iterator> Iterator for MarkLast<T> {
-    type Item = (bool, T::Item);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let item = self.0.next();
-        let has_next_item = self.0.peek().is_some();
-        item.and_then(|item| Some((!has_next_item, item)))
     }
 }

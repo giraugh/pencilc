@@ -9,6 +9,7 @@ use crate::{
         tir,
         ty::{self, PrimitiveTy, Ty},
     },
+    util::MarkLastIterExt,
 };
 use inkwell::{
     builder::Builder,
@@ -133,23 +134,24 @@ impl<'ctx> Codegen<'ctx> {
         Ok(())
     }
 
-    fn codegen_statement(&self, statement_node: tir::Statement) -> Result<()> {
-        match statement_node.kind {
-            tir::StatementKind::Expr(expr) => {
-                self.codegen_expr(*expr)?;
+    fn codegen_statement(&self, statement_node: tir::Statement) -> Result<Option<BasicValueEnum>> {
+        let value = match statement_node.kind {
+            tir::StatementKind::Expr(expr) => Some(self.codegen_expr(*expr)?),
+            tir::StatementKind::Return(expr) => {
+                match expr {
+                    None => {
+                        self.builder.build_return(None);
+                    }
+                    Some(expr) => {
+                        let expr = self.codegen_expr(*expr)?;
+                        self.builder.build_return(Some(&expr));
+                    }
+                }
+                None
             }
-            tir::StatementKind::Return(expr) => match expr {
-                None => {
-                    self.builder.build_return(None);
-                }
-                Some(expr) => {
-                    let expr = self.codegen_expr(*expr)?;
-                    self.builder.build_return(Some(&expr));
-                }
-            },
-        }
+        };
 
-        Ok(())
+        Ok(value)
     }
 
     fn create_entry_alloca(
@@ -502,7 +504,18 @@ impl<'ctx> Codegen<'ctx> {
 
             tir::ExprKind::Block(block) => {
                 // Codegen each statement
-                todo!()
+                let mut value = None;
+                for (is_last, statement) in block.statements.into_iter().mark_last() {
+                    if is_last && expr_node.ty != Ty::Never {
+                        value = self.codegen_statement(statement)?;
+                    } else {
+                        self.codegen_statement(statement)?;
+                    }
+                }
+                value
+                    // #HACK #GROSS #TODO
+                    .unwrap_or_else(|| self.context.i64_type().const_zero().into())
+                    .into()
             }
         };
 

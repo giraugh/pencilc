@@ -1,8 +1,13 @@
-fn foo() {
+fn simple() {
   let x = true && true;
   let y = false && true;
   let z = false && false;
   let a = true || true;
   let b = true || false;
   let c = false || false;
+}
+
+fn withcmp() {
+  let x = (1 == 1) || (1 == 2);
+  let y = (1 == 1) && (1 == 2);
 }

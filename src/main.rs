@@ -17,6 +17,7 @@ pub(crate) mod parse;
 pub(crate) mod session;
 pub(crate) mod span;
 pub(crate) mod tyc;
+pub(crate) mod util;
 
 fn main() {
     use clap::Parser;
